@@ -15,8 +15,13 @@ import {
   type AnthropicMessagesRequest,
 } from "./adapters.js";
 
-const OPENAI_BASE_URL = process.env.MEGABRAIN_OPENAI_BASE_URL ?? "https://api.openai.com";
-const ANTHROPIC_BASE_URL = process.env.MEGABRAIN_ANTHROPIC_BASE_URL ?? "https://api.anthropic.com";
+function getOpenAIBaseUrl(): string {
+  return process.env.MEGABRAIN_OPENAI_BASE_URL ?? "https://api.openai.com";
+}
+
+function getAnthropicBaseUrl(): string {
+  return process.env.MEGABRAIN_ANTHROPIC_BASE_URL ?? "https://api.anthropic.com";
+}
 
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -75,7 +80,7 @@ export function startProxy(options: ProxyOptions) {
     stats.recordRoute(decision.tier);
 
     const apiKey = req.headers.authorization ?? `Bearer ${process.env.OPENAI_API_KEY ?? ""}`;
-    const upstream = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
+    const upstream = await fetch(`${getOpenAIBaseUrl()}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: apiKey as string },
       body: raw,
@@ -103,7 +108,7 @@ export function startProxy(options: ProxyOptions) {
 
     const apiKey = (req.headers["x-api-key"] as string) ?? process.env.ANTHROPIC_API_KEY ?? "";
     const version = (req.headers["anthropic-version"] as string) ?? "2023-06-01";
-    const upstream = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
+    const upstream = await fetch(`${getAnthropicBaseUrl()}/v1/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": version },
       body: raw,
@@ -116,8 +121,8 @@ export function startProxy(options: ProxyOptions) {
 
   server.listen(options.port, () => {
     console.log(`MegaBrain proxy a correr em http://localhost:${options.port}`);
-    console.log(`  OpenAI:    POST /v1/chat/completions  -> ${OPENAI_BASE_URL}`);
-    console.log(`  Anthropic: POST /v1/messages          -> ${ANTHROPIC_BASE_URL}`);
+    console.log(`  OpenAI:    POST /v1/chat/completions  -> ${getOpenAIBaseUrl()}`);
+    console.log(`  Anthropic: POST /v1/messages          -> ${getAnthropicBaseUrl()}`);
   });
 
   return server;
