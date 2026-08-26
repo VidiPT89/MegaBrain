@@ -5,6 +5,10 @@ import { SemanticCache } from "./cache/semantic-cache.js";
 import { route } from "./router/tier-router.js";
 import { matchSkills } from "./skills/loader.js";
 import { StatsTracker } from "./stats/tracker.js";
+import { startProxy } from "./proxy/server.js";
+import { loadEnvFile } from "./proxy/env.js";
+
+loadEnvFile();
 
 const HOME = join(homedir(), ".megabrain");
 const cache = new SemanticCache(join(HOME, "cache.json"));
@@ -19,6 +23,7 @@ Comandos:
   remember "<prompt>" "<resposta>"   Guarda uma resposta no cache semântico
   stats                 Mostra estatísticas de poupança
   cache clear           Limpa o cache semântico
+  proxy [porta]         Inicia o proxy compatível com OpenAI/Anthropic (default porta 8787)
 `);
 }
 
@@ -70,6 +75,9 @@ switch (command) {
     break;
   case "cache":
     args[0] === "clear" ? cmdCacheClear() : printUsage();
+    break;
+  case "proxy":
+    startProxy({ port: args[0] ? Number(args[0]) : 8787 });
     break;
   default:
     printUsage();
