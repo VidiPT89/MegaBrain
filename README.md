@@ -17,6 +17,7 @@ MegaBrain sits between your app and your LLM provider. Point your OpenAI or Anth
 - ✅ **Dark / light** — dark by default, same burnt orange and amber, cream paper in light mode
 - ✅ **Works fully offline and free** — point it at a local Ollama instance instead of a paid API
 - ✅ **CLI standalone mode** — `ask`, `remember`, `stats`, `cache clear` without running a server
+- ✅ **One command to start everything** — `npm run start` boots Ollama (if needed), the proxy and the dashboard, and opens your browser
 
 ## 🛠️ Technologies
 
@@ -68,32 +69,26 @@ npm run build
 npm test
 ```
 
+### One command, fully free (recommended)
+
+Requires [Ollama](https://ollama.com) installed with at least one model pulled (`ollama pull qwen2.5-coder:7b`).
+
+```bash
+echo "MEGABRAIN_OPENAI_BASE_URL=http://localhost:11434" > .env
+echo "OPENAI_API_KEY=ollama" >> .env
+
+npm run start
+```
+
+This starts Ollama if it isn't already running, then the proxy and the dashboard, and opens [http://localhost:4321](http://localhost:4321) in your browser.
+
 ### Running with a paid provider
 
 ```bash
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
-npm run build && node dist/cli.js proxy 8787
-```
-
-### Running for free with Ollama
-
-```bash
-ollama serve
-ollama pull qwen2.5-coder:7b
-
-echo "MEGABRAIN_OPENAI_BASE_URL=http://localhost:11434" > .env
-echo "OPENAI_API_KEY=ollama" >> .env
-
-npm run build && node dist/cli.js proxy 8787
-```
-
-Then open the dashboard:
-
-```bash
+node dist/cli.js proxy 8787
 node dist/cli.js dashboard 4321
 ```
-
-Open [http://localhost:4321](http://localhost:4321).
 
 ## 📖 Usage
 

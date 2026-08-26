@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { homedir } from "node:os";
+import { homedir, platform } from "node:os";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { SemanticCache } from "./cache/semantic-cache.js";
 import { route } from "./router/tier-router.js";
 import { matchSkills } from "./skills/loader.js";
@@ -26,7 +27,41 @@ Comandos:
   cache clear           Limpa o cache semântico
   proxy [porta]         Inicia o proxy compatível com OpenAI/Anthropic (default porta 8787)
   dashboard [porta]     Abre o dashboard visual de poupança (default porta 4321)
+  start                 Liga tudo de uma vez: Ollama (se preciso), proxy e dashboard
 `);
+}
+
+async function isOllamaRunning(): Promise<boolean> {
+  try {
+    const res = await fetch("http://localhost:11434/api/version", { signal: AbortSignal.timeout(1000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function openBrowser(url: string): void {
+  const command = platform() === "darwin" ? "open" : platform() === "win32" ? "start" : "xdg-open";
+  spawn(command, [url], { detached: true, stdio: "ignore" }).unref();
+}
+
+async function cmdStart(): Promise<void> {
+  const usingLocalOllama = (process.env.MEGABRAIN_OPENAI_BASE_URL ?? "").includes("localhost:11434");
+
+  if (usingLocalOllama && !(await isOllamaRunning())) {
+    console.log("A ligar o Ollama local...");
+    spawn("ollama", ["serve"], { detached: true, stdio: "ignore" }).unref();
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
+  startProxy({ port: 8787 });
+  startDashboard(4321);
+
+  console.log("\nMegaBrain está pronto:");
+  console.log("  Proxy:     http://localhost:8787");
+  console.log("  Dashboard: http://localhost:4321\n");
+
+  openBrowser("http://localhost:4321");
 }
 
 function cmdAsk(prompt: string): void {
@@ -83,6 +118,9 @@ switch (command) {
     break;
   case "dashboard":
     startDashboard(args[0] ? Number(args[0]) : 4321);
+    break;
+  case "start":
+    cmdStart();
     break;
   default:
     printUsage();
