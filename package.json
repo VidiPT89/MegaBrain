@@ -1,0 +1,27 @@
+{
+  "name": "megabrain",
+  "version": "0.1.0",
+  "description": "CLI/proxy que poupa tokens de IA através de cache semântico, roteamento por complexidade e skills carregadas sob demanda.",
+  "type": "module",
+  "bin": {
+    "megabrain": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run"
+  },
+  "keywords": ["ai", "llm", "token-savings", "router", "cache", "cli"],
+  "license": "MIT",
+  "author": "David Arsénio Martins (Vidi)",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0",
+    "vitest": "^2.1.0",
+    "@types/node": "^22.7.0"
+  }
+}
