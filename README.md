@@ -1,52 +1,130 @@
-# MegaBrain
+# 🧠 MegaBrain
 
-CLI que poupa tokens de IA em vez de só rotear entre modelos. Três peças, cada uma opcional e composável:
+> Drop-in OpenAI/Anthropic-compatible proxy, CLI and live dashboard that cut LLM token spend, painted in the ividi.dev palette (black, burnt orange, amber).
 
-- **Cache semântico** (`src/cache`): antes de chamar qualquer modelo, verifica se uma pergunta semelhante já foi respondida (similaridade de vetores term-frequency, sem depender de nenhuma API externa).
-- **Roteamento por tier** (`src/router`): classifica a complexidade do prompt (`local` / `mid` / `premium`) por heurística, para o chamador decidir que modelo usar em cada caso, em vez de mandar tudo para o modelo mais caro.
-- **Skills lazy-loaded** (`src/skills`): ficheiros markdown com `triggers` no frontmatter; só o corpo da skill selecionada é carregado, nunca todas de uma vez.
-- **Stats** (`src/stats`): regista cache hits, distribuição por tier e tokens poupados estimados.
+[🐞 Report Bug](https://github.com/VidiPT89/MegaBrain/issues) · [✨ Request Feature](https://github.com/VidiPT89/MegaBrain/issues)
 
-- **Proxy drop-in** (`src/proxy`): servidor HTTP compatível com os formatos `POST /v1/chat/completions` (OpenAI) e `POST /v1/messages` (Anthropic). Basta trocar o `base_url` do teu SDK/app para `http://localhost:8787` — sem mudar nenhum código — e o MegaBrain intercepta cada pedido: se já respondeu a algo semelhante, devolve do cache sem gastar um único token; caso contrário reencaminha para o provider real e guarda a resposta para a próxima vez.
+MegaBrain sits between your app and your LLM provider. Point your OpenAI or Anthropic SDK at it, no code changes, and it decides if a call is even worth making before spending a single token: a semantic cache answers repeated questions instantly, a tier router flags how complex each prompt really is, and a live dashboard shows exactly how much you saved. It works just as well with a fully local, free backend like Ollama.
 
-## Uso — CLI standalone
+## ✨ Main Features
+
+- ✅ **Drop-in proxy** — `/v1/chat/completions` (OpenAI) and `/v1/messages` (Anthropic), same request/response shape
+- ✅ **Semantic cache** — cosine similarity over term-frequency vectors catches reworded duplicate questions, zero external dependencies
+- ✅ **Tier router** — heuristic `local` / `mid` / `premium` classification so you know when a cheap model is enough
+- ✅ **Lazy-loaded skills** — Markdown files with frontmatter triggers, only the matched skill's body is read
+- ✅ **Live dashboard** — animated stats: total requests, cache hit rate, tokens saved, tier distribution
+- ✅ **PT / EN toggle** — remembered in `localStorage`
+- ✅ **Dark / light** — dark by default, same burnt orange and amber, cream paper in light mode
+- ✅ **Works fully offline and free** — point it at a local Ollama instance instead of a paid API
+- ✅ **CLI standalone mode** — `ask`, `remember`, `stats`, `cache clear` without running a server
+
+## 🛠️ Technologies
+
+![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat&logo=nodedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-2-6E9F18?style=flat&logo=vitest&logoColor=white)
+
+| Category | Technology | Purpose |
+|----------|-----------|---------|
+| **Runtime** | Node.js (`node:http`) | Proxy and dashboard servers, no framework dependency |
+| **Language** | TypeScript | CLI, proxy, cache, router, dashboard |
+| **Cache** | Term-frequency + cosine similarity | Semantic matching without an embeddings API |
+| **Dashboard** | Vanilla HTML/CSS/JS | Animated stats, PT/EN and dark/light toggles |
+| **Tests** | Vitest | Tier router and semantic cache coverage |
+
+## 🧱 Project Structure
+
+```text
+MegaBrain/
+├── src/
+│   ├── cache/        # Semantic cache
+│   ├── router/        # Tier router
+│   ├── skills/         # Lazy-loaded Markdown skills
+│   ├── stats/          # Savings tracker
+│   ├── proxy/          # OpenAI/Anthropic-compatible drop-in proxy
+│   ├── dashboard/    # Live stats dashboard (PT/EN, dark/light)
+│   ├── cli.ts
+│   └── index.ts
+├── skills/
+├── tests/
+├── LICENSE
+└── README.md
+```
+
+## ▶️ How to Run
+
+### Prerequisites
+
+- **Node.js** 18+
+- An OpenAI or Anthropic API key, **or** [Ollama](https://ollama.com) running locally for a fully free setup
+
+### Installation
 
 ```bash
+git clone https://github.com/VidiPT89/MegaBrain.git
+cd MegaBrain
 npm install
 npm run build
-
-megabrain ask "traduz este texto para inglês: bom dia"
-megabrain remember "qual a capital de Portugal" "Lisboa"
-megabrain stats
-megabrain cache clear
+npm test
 ```
 
-## Uso — Proxy (fricção zero, recomendado)
+### Running with a paid provider
 
 ```bash
-export OPENAI_API_KEY=sk-...       # ou ANTHROPIC_API_KEY, conforme o provider
-megabrain proxy 8787
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+npm run build && node dist/cli.js proxy 8787
 ```
 
-Depois, na tua app, troca só o `base_url`:
+### Running for free with Ollama
 
 ```bash
-# antes: https://api.openai.com
-# depois:
-curl http://localhost:8787/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"olá"}]}'
+ollama serve
+ollama pull qwen2.5-coder:7b
+
+echo "MEGABRAIN_OPENAI_BASE_URL=http://localhost:11434" > .env
+echo "OPENAI_API_KEY=ollama" >> .env
+
+npm run build && node dist/cli.js proxy 8787
 ```
 
-Também suporta `POST /v1/messages` no formato Anthropic (`x-api-key` + `anthropic-version` nos headers, tal como a API oficial). Podes definir `MEGABRAIN_OPENAI_BASE_URL` / `MEGABRAIN_ANTHROPIC_BASE_URL` num `.env` para apontar a outro provider compatível.
+Then open the dashboard:
 
-Cada resposta inclui um campo `megabrain: { cache_hit, tier }` para saberes exatamente o que aconteceu, e `megabrain stats` acumula o histórico de poupança.
+```bash
+node dist/cli.js dashboard 4321
+```
 
-## Estado
+Open [http://localhost:4321](http://localhost:4321).
 
-MVP em desenvolvimento. Próximos passos:
-- Trocar o cache de term-frequency por embeddings reais (opcional, mantendo a mesma interface).
-- Compressão/sumarização automática de histórico de conversa.
-- Suporte a streaming (`stream: true`) no proxy — hoje só funciona em modo não-streaming.
-- Dashboard local com contador de tokens/€ poupados em tempo real.
+## 📖 Usage
+
+1. Start `megabrain proxy` and point your app's `base_url` at `http://localhost:8787` instead of the real provider — no other code changes.
+2. Every request is checked against the semantic cache first; a hit returns instantly with `usage: 0` and `megabrain.cache_hit: true`.
+3. On a miss, the request is classified into a tier (`local` / `mid` / `premium`) and forwarded to the real provider; the response is cached for next time.
+4. Open `megabrain dashboard` to watch requests, cache hit rate, tokens saved and tier distribution update live. Toggle **PT/EN** and **Dark/Light** in the header.
+5. Or skip the server entirely: `megabrain ask "<prompt>"`, `megabrain remember "<prompt>" "<response>"`, `megabrain stats`.
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/chat/completions` | OpenAI-compatible chat proxy with cache + tier routing |
+| POST | `/v1/messages` | Anthropic-compatible messages proxy with cache + tier routing |
+| GET | `/api/stats` | JSON savings snapshot, used by the dashboard |
+| GET | `/` | Live dashboard UI |
+
+## 🧪 Testing
+
+```bash
+npm test
+```
+
+Vitest covers tier classification (local/mid/premium) and semantic cache behavior (hit on reworded prompts, miss on unrelated ones, clear).
+
+## 📄 License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+---
+
+Developed by **David Arsénio Martins**
+🌐 [ividi.dev](https://ividi.dev/) · 💻 [github.com/VidiPT89](https://github.com/VidiPT89/)

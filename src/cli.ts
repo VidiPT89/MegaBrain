@@ -7,6 +7,7 @@ import { matchSkills } from "./skills/loader.js";
 import { StatsTracker } from "./stats/tracker.js";
 import { startProxy } from "./proxy/server.js";
 import { loadEnvFile } from "./proxy/env.js";
+import { startDashboard } from "./dashboard/server.js";
 
 loadEnvFile();
 
@@ -24,6 +25,7 @@ Comandos:
   stats                 Mostra estatísticas de poupança
   cache clear           Limpa o cache semântico
   proxy [porta]         Inicia o proxy compatível com OpenAI/Anthropic (default porta 8787)
+  dashboard [porta]     Abre o dashboard visual de poupança (default porta 4321)
 `);
 }
 
@@ -78,6 +80,9 @@ switch (command) {
     break;
   case "proxy":
     startProxy({ port: args[0] ? Number(args[0]) : 8787 });
+    break;
+  case "dashboard":
+    startDashboard(args[0] ? Number(args[0]) : 4321);
     break;
   default:
     printUsage();

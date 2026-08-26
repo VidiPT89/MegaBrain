@@ -1,7 +1,7 @@
 {
   "name": "megabrain",
   "version": "0.1.0",
-  "description": "CLI/proxy que poupa tokens de IA através de cache semântico, roteamento por complexidade e skills carregadas sob demanda.",
+  "description": "Drop-in OpenAI/Anthropic-compatible proxy and CLI that cut LLM token spend with semantic caching, tier routing and a live savings dashboard. Bilingual PT/EN, dark and light.",
   "type": "module",
   "bin": {
     "megabrain": "./dist/cli.js"
@@ -14,7 +14,7 @@
   },
   "keywords": ["ai", "llm", "token-savings", "router", "cache", "cli"],
   "license": "MIT",
-  "author": "David Arsénio Martins (Vidi)",
+  "author": "David Arsénio Martins",
   "engines": {
     "node": ">=18"
   },
