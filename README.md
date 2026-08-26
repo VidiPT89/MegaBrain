@@ -9,6 +9,7 @@ MegaBrain sits between your app and your LLM provider. Point your OpenAI or Anth
 ## ✨ Main Features
 
 - ✅ **Drop-in proxy** — `/v1/chat/completions` (OpenAI) and `/v1/messages` (Anthropic), same request/response shape
+- ✅ **Streaming support** — `stream: true` works end-to-end, including instant streamed replies on cache hits
 - ✅ **Semantic cache** — cosine similarity over term-frequency vectors catches reworded duplicate questions, zero external dependencies
 - ✅ **Tier router** — heuristic `local` / `mid` / `premium` classification so you know when a cheap model is enough
 - ✅ **Lazy-loaded skills** — Markdown files with frontmatter triggers, only the matched skill's body is read

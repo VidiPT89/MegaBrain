@@ -9,8 +9,13 @@ import {
   extractAnthropicPrompt,
   buildOpenAICacheResponse,
   buildAnthropicCacheResponse,
+  buildOpenAIStreamCacheEvents,
+  buildAnthropicStreamCacheEvents,
   extractOpenAIResponseText,
   extractAnthropicResponseText,
+  extractOpenAIStreamDelta,
+  extractAnthropicStreamDelta,
+  pipeAndCollectText,
   type OpenAIChatRequest,
   type AnthropicMessagesRequest,
 } from "./adapters.js";
@@ -33,6 +38,12 @@ function sendJson(res: ServerResponse, status: number, payload: unknown): void {
   const body = JSON.stringify(payload);
   res.writeHead(status, { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) });
   res.end(body);
+}
+
+function sendSseEvents(res: ServerResponse, events: string[]): void {
+  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+  for (const event of events) res.write(event);
+  res.end();
 }
 
 export interface ProxyOptions {
@@ -72,7 +83,11 @@ export function startProxy(options: ProxyOptions) {
     const cached = cache.find(prompt);
     if (cached) {
       stats.recordCacheHit(Math.ceil(prompt.length / 4));
-      sendJson(res, 200, buildOpenAICacheResponse(body.model, cached.entry.response));
+      if (body.stream) {
+        sendSseEvents(res, buildOpenAIStreamCacheEvents(body.model, cached.entry.response));
+      } else {
+        sendJson(res, 200, buildOpenAICacheResponse(body.model, cached.entry.response));
+      }
       return;
     }
 
@@ -85,6 +100,15 @@ export function startProxy(options: ProxyOptions) {
       headers: { "Content-Type": "application/json", Authorization: apiKey as string },
       body: raw,
     });
+
+    if (body.stream && upstream.body) {
+      res.writeHead(upstream.status, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+      const text = await pipeAndCollectText(upstream.body, (raw) => res.write(raw), extractOpenAIStreamDelta);
+      res.end();
+      if (text) cache.store(prompt, text);
+      return;
+    }
+
     const payload = await upstream.json();
     const text = extractOpenAIResponseText(payload);
     if (text) cache.store(prompt, text);
@@ -99,7 +123,11 @@ export function startProxy(options: ProxyOptions) {
     const cached = cache.find(prompt);
     if (cached) {
       stats.recordCacheHit(Math.ceil(prompt.length / 4));
-      sendJson(res, 200, buildAnthropicCacheResponse(body.model, cached.entry.response));
+      if (body.stream) {
+        sendSseEvents(res, buildAnthropicStreamCacheEvents(body.model, cached.entry.response));
+      } else {
+        sendJson(res, 200, buildAnthropicCacheResponse(body.model, cached.entry.response));
+      }
       return;
     }
 
@@ -113,6 +141,15 @@ export function startProxy(options: ProxyOptions) {
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": version },
       body: raw,
     });
+
+    if (body.stream && upstream.body) {
+      res.writeHead(upstream.status, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+      const text = await pipeAndCollectText(upstream.body, (raw) => res.write(raw), extractAnthropicStreamDelta);
+      res.end();
+      if (text) cache.store(prompt, text);
+      return;
+    }
+
     const payload = await upstream.json();
     const text = extractAnthropicResponseText(payload);
     if (text) cache.store(prompt, text);
