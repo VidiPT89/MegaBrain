@@ -1,7 +1,9 @@
 import { sql } from "./db";
 import { decryptSecret } from "./crypto";
 
-export async function getUserApiKey(userId: string, provider: "openai" | "anthropic"): Promise<string | null> {
+export type Provider = "openai" | "anthropic" | "gemini";
+
+export async function getUserApiKey(userId: string, provider: Provider): Promise<string | null> {
   const db = sql();
   const rows = (await db`
     SELECT encrypted_key FROM api_keys WHERE user_id = ${userId} AND provider = ${provider}

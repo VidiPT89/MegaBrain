@@ -9,8 +9,8 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
   const { provider, apiKey } = (await req.json()) as { provider?: string; apiKey?: string };
-  if (provider !== "openai" && provider !== "anthropic") {
-    return NextResponse.json({ error: "provider deve ser 'openai' ou 'anthropic'" }, { status: 400 });
+  if (provider !== "openai" && provider !== "anthropic" && provider !== "gemini") {
+    return NextResponse.json({ error: "provider deve ser 'openai', 'anthropic' ou 'gemini'" }, { status: 400 });
   }
   if (!apiKey || apiKey.length < 8) {
     return NextResponse.json({ error: "apiKey inválida" }, { status: 400 });

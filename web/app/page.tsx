@@ -12,8 +12,9 @@ export default async function Home() {
           <span className="mb-accent">MegaBrain</span>
         </h1>
         <p className="text-lg opacity-90">
-          Cuts your LLM token spend. Bring your own OpenAI or Anthropic key, get a drop-in proxy with semantic
-          cache and tier routing, and watch your savings live.
+          Cuts your LLM token spend. Bring your own Gemini, OpenAI or Anthropic key — Gemini is free, no credit
+          card required — and get a drop-in proxy with semantic cache and tier routing, watching your savings
+          live.
         </p>
       </div>
 

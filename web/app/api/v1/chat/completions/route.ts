@@ -21,10 +21,20 @@ export async function POST(req: NextRequest) {
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
-  const apiKey = await getUserApiKey(userId, "openai");
+  const openaiKey = await getUserApiKey(userId, "openai");
+  const geminiKey = openaiKey ? null : await getUserApiKey(userId, "gemini");
+  const apiKey = openaiKey ?? geminiKey;
   if (!apiKey) {
-    return NextResponse.json({ error: "Sem chave OpenAI configurada. Adiciona uma em /settings." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Sem chave OpenAI ou Gemini configurada. Adiciona uma em /settings." },
+      { status: 400 },
+    );
   }
+  // A API do Gemini expõe um endpoint compatível com o formato OpenAI, por isso
+  // basta trocar o base_url — o resto do pedido/resposta fica igual.
+  const baseUrl = openaiKey
+    ? "https://api.openai.com/v1/chat/completions"
+    : "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
   const body = (await req.json()) as OpenAIRequest;
   const prompt = extractPrompt(body);
@@ -46,7 +56,7 @@ export async function POST(req: NextRequest) {
   const decision = route(prompt);
   await recordRoute(userId, decision.tier);
 
-  const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+  const upstream = await fetch(baseUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
