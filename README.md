@@ -8,6 +8,10 @@
 
 MegaBrain sits between your app and your LLM provider. Point your OpenAI or Anthropic SDK at it, no code changes, and it decides if a call is even worth making before spending a single token: a semantic cache answers repeated questions instantly, a tier router flags how complex each prompt really is, and a live dashboard shows exactly how much you saved. It works just as well with a fully local, free backend like Ollama.
 
+This repo has two ways to run it:
+- **CLI, below** — runs on your own machine, `npx`-style, zero accounts needed.
+- **[Hosted web app](web/)** — sign in with GitHub, bring your own API key, and get the same proxy and dashboard as a multi-user site (Next.js on Vercel, Postgres on Neon). See [web/README.md](web/README.md) to run or deploy it.
+
 ## ✨ Main Features
 
 - ✅ **Drop-in proxy** — `/v1/chat/completions` (OpenAI) and `/v1/messages` (Anthropic), same request/response shape

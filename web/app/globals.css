@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0806;
+  --paper: #14100c;
+  --ink: #f3ece3;
+  --muted: #a89a8a;
+  --border: #2a221a;
+  --orange: #e0651a;
+  --amber: #f2ac2b;
+}
+
+[data-theme="light"] {
+  --bg: #faf3e8;
+  --paper: #fffaf2;
+  --ink: #201509;
+  --muted: #7a6a56;
+  --border: #ecdcc4;
+  --orange: #c2410c;
+  --amber: #b5750f;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.mb-card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.mb-accent {
+  background: linear-gradient(90deg, var(--orange), var(--amber));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.mb-btn {
+  background: linear-gradient(135deg, var(--orange), var(--amber));
+  color: #14100c;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+
+.mb-btn:hover {
+  transform: translateY(-1px);
+}
+
+.mb-pill {
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
