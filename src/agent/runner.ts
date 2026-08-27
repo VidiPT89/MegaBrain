@@ -3,6 +3,10 @@ import { join } from "node:path";
 import { SemanticCache } from "../cache/semantic-cache.js";
 import { route } from "../router/tier-router.js";
 import { matchSkills } from "../skills/loader.js";
+import { loadRules } from "../rules/loader.js";
+import { MemoryStore } from "../memory/store.js";
+import { builtinTools, describeTools, findTool, type Tool } from "../tools/registry.js";
+import { connectConfiguredMcpServers, type McpClient } from "../mcp/client.js";
 
 function getBaseUrl(): string {
   return process.env.MEGABRAIN_OPENAI_BASE_URL ?? "https://api.openai.com";
@@ -16,15 +20,7 @@ function getApiKey(): string {
   return process.env.OPENAI_API_KEY ?? "";
 }
 
-/**
- * Chama o modelo configurado (Ollama local ou API compatível com OpenAI),
- * passando primeiro pelo cache semântico partilhado do MegaBrain — passos
- * repetidos entre execuções do agente não voltam a gastar tokens.
- */
-async function callModel(cache: SemanticCache, prompt: string): Promise<string> {
-  const cached = await cache.find(prompt);
-  if (cached) return cached.entry.response;
-
+async function callModelRaw(prompt: string): Promise<string> {
   const res = await fetch(`${getBaseUrl()}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
@@ -36,60 +32,154 @@ async function callModel(cache: SemanticCache, prompt: string): Promise<string> 
   }
 
   const payload = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = payload.choices?.[0]?.message?.content ?? "";
-  if (text) await cache.store(prompt, text);
-  return text;
+  return payload.choices?.[0]?.message?.content ?? "";
 }
 
-function parseSteps(planText: string): string[] {
-  return planText
-    .split("\n")
-    .map((line) => line.replace(/^\s*(\d+[.)]|[-*])\s*/, "").trim())
-    .filter((line) => line.length > 0);
+interface ParsedStep {
+  thought?: string;
+  action?: string;
+  actionInput?: Record<string, unknown>;
+  finalAnswer?: string;
 }
+
+function parseModelStep(text: string): ParsedStep {
+  const thoughtMatch = text.match(/Thought:\s*(.+)/i);
+  const finalMatch = text.match(/Final Answer:\s*([\s\S]+)/i);
+  if (finalMatch) return { thought: thoughtMatch?.[1]?.trim(), finalAnswer: finalMatch[1].trim() };
+
+  const actionMatch = text.match(/Action:\s*(\w+)/i);
+  const inputMatch = text.match(/Action Input:\s*(\{[\s\S]*\})/i);
+  let actionInput: Record<string, unknown> = {};
+  if (inputMatch) {
+    try {
+      actionInput = JSON.parse(inputMatch[1]);
+    } catch {
+      // input mal formado — o loop mostra o erro ao modelo na próxima observação
+    }
+  }
+  return { thought: thoughtMatch?.[1]?.trim(), action: actionMatch?.[1], actionInput };
+}
+
+const MAX_ITERATIONS = 6;
 
 /**
- * Agente simples: divide um objetivo em passos com o modelo local, executa
- * cada passo (também via modelo), e imprime um resumo final. Reaproveita o
- * cache semântico e o tier router já existentes no MegaBrain.
+ * Agente com ciclo ReAct real: o modelo escolhe entre usar uma ferramenta
+ * (built-in ou de um servidor MCP configurado) ou dar a resposta final.
+ * Aplica sempre as regras em `rules/`, injeta memórias relevantes e skills
+ * cujos triggers batam com o objetivo, e reaproveita o cache semântico e o
+ * tier router já existentes no MegaBrain.
  */
 export async function runAgent(goal: string): Promise<void> {
-  const cache = new SemanticCache(join(homedir(), ".megabrain", "cache.json"));
+  const home = join(homedir(), ".megabrain");
+  const cache = new SemanticCache(join(home, "cache.json"));
+  const memory = new MemoryStore(join(home, "memory.json"));
   const skillsDir = join(process.cwd(), "skills");
+  const rulesDir = join(process.cwd(), "rules");
 
   const decision = route(goal);
   console.log(`Objetivo: ${goal}`);
   console.log(`Tier estimado: ${decision.tier} (${decision.reason})\n`);
 
-  const skills = matchSkills(skillsDir, goal);
-  const skillHint = skills.length > 0 ? `\n\nSkills relevantes disponíveis: ${skills.map((s) => s.name).join(", ")}.` : "";
-
-  console.log("A planear passos...");
-  const planPrompt = `Divide o seguinte objetivo em, no máximo, 5 passos curtos e numerados, um por linha, sem explicações extra.${skillHint}\n\nObjetivo: ${goal}`;
-  const planText = await callModel(cache, planPrompt);
-  const steps = parseSteps(planText);
-
-  if (steps.length === 0) {
-    console.log("Não consegui gerar um plano. Resposta do modelo:");
-    console.log(planText);
+  const cachedFinal = await cache.find(goal);
+  if (cachedFinal) {
+    console.log(`[cache hit] Este objetivo já foi resolvido antes.\n`);
+    console.log(`=== Resposta final ===\n${cachedFinal.entry.response}`);
     return;
   }
 
-  console.log(`Plano (${steps.length} passos):`);
-  steps.forEach((step, i) => console.log(`  ${i + 1}. ${step}`));
-  console.log("");
+  const rules = loadRules(rulesDir);
+  const relevantMemories = memory.search(goal);
+  const skills = matchSkills(skillsDir, goal);
 
-  const results: string[] = [];
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
-    console.log(`--- Passo ${i + 1}/${steps.length}: ${step} ---`);
-    const stepPrompt = `Objetivo geral: ${goal}\nExecuta apenas este passo e devolve o resultado, nada mais:\nPasso: ${step}`;
-    const result = await callModel(cache, stepPrompt);
-    console.log(result.trim());
-    console.log("");
-    results.push(result.trim());
+  let mcpConnections: { name: string; client: McpClient }[] = [];
+  try {
+    mcpConnections = await connectConfiguredMcpServers();
+  } catch {
+    mcpConnections = [];
   }
 
-  console.log("=== Resumo final ===");
-  console.log(results.join("\n\n"));
+  const tools: Tool[] = [...builtinTools()];
+  for (const { name, client } of mcpConnections) {
+    try {
+      const mcpTools = await client.listTools();
+      for (const mcpTool of mcpTools) {
+        tools.push({
+          name: `${name}_${mcpTool.name}`,
+          description: `[MCP:${name}] ${mcpTool.description ?? mcpTool.name}`,
+          run: (args) => client.callTool(mcpTool.name, args),
+        });
+      }
+    } catch (err) {
+      console.warn(`MCP "${name}": falha ao listar ferramentas — ${(err as Error).message}`);
+    }
+  }
+
+  if (rules.length > 0) console.log(`Regras ativas: ${rules.length}`);
+  if (relevantMemories.length > 0) console.log(`Memórias relevantes: ${relevantMemories.map((m) => m.text).join(" | ")}`);
+  if (skills.length > 0) console.log(`Skills relevantes: ${skills.map((s) => s.name).join(", ")}`);
+  if (tools.length > 0) console.log(`Ferramentas disponíveis: ${tools.map((t) => t.name).join(", ")}\n`);
+
+  const systemContext = [
+    rules.length > 0 ? `Regras a cumprir sempre:\n${rules.join("\n")}` : "",
+    relevantMemories.length > 0 ? `Memórias relevantes:\n${relevantMemories.map((m) => `- ${m.text}`).join("\n")}` : "",
+    skills.length > 0 ? `Skills relevantes:\n${skills.map((s) => `### ${s.name}\n${s.content}`).join("\n\n")}` : "",
+    `Ferramentas disponíveis:\n${describeTools(tools)}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const instructions = `Respondes sempre neste formato exato, um bloco por vez:
+Thought: <o teu raciocínio>
+Action: <nome de uma ferramenta da lista>
+Action Input: <JSON com os argumentos>
+
+Ou, quando já tens a resposta final:
+Thought: <o teu raciocínio>
+Final Answer: <resposta final completa>`;
+
+  let transcript = `${systemContext}\n\n${instructions}\n\nObjetivo: ${goal}`;
+
+  try {
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      // Sem cache aqui de propósito: o transcript cresce a cada iteração e a
+      // diferença entre duas versões é pequena face ao texto acumulado, o
+      // que causava falsos positivos de cache mesmo sem repetição real.
+      const raw = await callModelRaw(transcript);
+      const step = parseModelStep(raw);
+
+      if (step.thought) console.log(`Thought: ${step.thought}`);
+
+      if (step.finalAnswer) {
+        console.log(`\n=== Resposta final ===\n${step.finalAnswer}`);
+        await cache.store(goal, step.finalAnswer);
+        return;
+      }
+
+      if (!step.action) {
+        console.log("\nO modelo não indicou uma ação nem uma resposta final. Resposta bruta:");
+        console.log(raw);
+        return;
+      }
+
+      const tool = findTool(tools, step.action);
+      let observation: string;
+      if (!tool) {
+        observation = `Ferramenta "${step.action}" não existe. Ferramentas válidas: ${tools.map((t) => t.name).join(", ")}`;
+      } else {
+        console.log(`Action: ${step.action}(${JSON.stringify(step.actionInput)})`);
+        try {
+          observation = await tool.run(step.actionInput ?? {});
+        } catch (err) {
+          observation = `Erro ao correr "${step.action}": ${(err as Error).message}`;
+        }
+        console.log(`Observation: ${observation}\n`);
+      }
+
+      transcript += `\n\nThought: ${step.thought ?? ""}\nAction: ${step.action}\nAction Input: ${JSON.stringify(step.actionInput)}\nObservation: ${observation}`;
+    }
+
+    console.log("\nNúmero máximo de passos atingido sem resposta final.");
+  } finally {
+    for (const { client } of mcpConnections) client.close();
+  }
 }
