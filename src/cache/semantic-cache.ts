@@ -1,9 +1,11 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { getEmbedding, cosineSimilarityArray } from "./embeddings.js";
 
 export interface CacheEntry {
   prompt: string;
   vector: Record<string, number>;
+  embedding?: number[];
   response: string;
   createdAt: string;
   hits: number;
@@ -12,6 +14,7 @@ export interface CacheEntry {
 export interface CacheMatch {
   entry: CacheEntry;
   similarity: number;
+  method: "embedding" | "term-frequency";
 }
 
 const TOKEN_RE = /[a-zà-ú0-9]+/gi;
@@ -44,18 +47,23 @@ function cosineSimilarity(a: Record<string, number>, b: Record<string, number>):
 }
 
 /**
- * Cache semântico baseado em similaridade de vetores term-frequency.
- * Suficiente como baseline sem dependências externas; pode ser trocado
- * por embeddings reais (ex. via API) mantendo a mesma interface.
+ * Cache semântico. Usa embeddings reais (ex. Ollama nomic-embed-text) quando
+ * disponíveis, para apanhar paráfrases distantes; recua automaticamente para
+ * similaridade term-frequency (sem rede) quando o serviço de embeddings não
+ * responde. Uma vez indisponível, deixa de tentar nessa instância (evita
+ * repetir timeouts em cada pedido).
  */
 export class SemanticCache {
   private entries: CacheEntry[] = [];
   private readonly filePath: string;
   private readonly threshold: number;
+  private readonly embeddingThreshold: number;
+  private embeddingAvailable: boolean | null = null;
 
-  constructor(filePath: string, threshold = 0.85) {
+  constructor(filePath: string, threshold = 0.85, embeddingThreshold = 0.93) {
     this.filePath = filePath;
     this.threshold = threshold;
+    this.embeddingThreshold = embeddingThreshold;
     this.load();
   }
 
@@ -70,13 +78,31 @@ export class SemanticCache {
     writeFileSync(this.filePath, JSON.stringify(this.entries, null, 2));
   }
 
-  find(prompt: string): CacheMatch | null {
-    const vector = toVector(prompt);
+  private async tryGetEmbedding(text: string): Promise<number[] | null> {
+    if (this.embeddingAvailable === false) return null;
+    const embedding = await getEmbedding(text);
+    this.embeddingAvailable = embedding !== null;
+    return embedding;
+  }
+
+  async find(prompt: string): Promise<CacheMatch | null> {
+    const queryEmbedding = await this.tryGetEmbedding(prompt);
+    const queryVector = toVector(prompt);
+
     let best: CacheMatch | null = null;
     for (const entry of this.entries) {
-      const similarity = cosineSimilarity(vector, entry.vector);
-      if (similarity >= this.threshold && (!best || similarity > best.similarity)) {
-        best = { entry, similarity };
+      let similarity: number;
+      let method: CacheMatch["method"];
+      if (queryEmbedding && entry.embedding) {
+        similarity = cosineSimilarityArray(queryEmbedding, entry.embedding);
+        method = "embedding";
+      } else {
+        similarity = cosineSimilarity(queryVector, entry.vector);
+        method = "term-frequency";
+      }
+      const threshold = method === "embedding" ? this.embeddingThreshold : this.threshold;
+      if (similarity >= threshold && (!best || similarity > best.similarity)) {
+        best = { entry, similarity, method };
       }
     }
     if (best) {
@@ -86,10 +112,12 @@ export class SemanticCache {
     return best;
   }
 
-  store(prompt: string, response: string): void {
+  async store(prompt: string, response: string): Promise<void> {
+    const embedding = await this.tryGetEmbedding(prompt);
     this.entries.push({
       prompt,
       vector: toVector(prompt),
+      embedding: embedding ?? undefined,
       response,
       createdAt: new Date().toISOString(),
       hits: 0,

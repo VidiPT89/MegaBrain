@@ -4,15 +4,18 @@
 
 [🐞 Report Bug](https://github.com/VidiPT89/MegaBrain/issues) · [✨ Request Feature](https://github.com/VidiPT89/MegaBrain/issues)
 
+![MegaBrain dashboard](docs/dashboard.jpg)
+
 MegaBrain sits between your app and your LLM provider. Point your OpenAI or Anthropic SDK at it, no code changes, and it decides if a call is even worth making before spending a single token: a semantic cache answers repeated questions instantly, a tier router flags how complex each prompt really is, and a live dashboard shows exactly how much you saved. It works just as well with a fully local, free backend like Ollama.
 
 ## ✨ Main Features
 
 - ✅ **Drop-in proxy** — `/v1/chat/completions` (OpenAI) and `/v1/messages` (Anthropic), same request/response shape
 - ✅ **Streaming support** — `stream: true` works end-to-end, including instant streamed replies on cache hits
-- ✅ **Semantic cache** — cosine similarity over term-frequency vectors catches reworded duplicate questions, zero external dependencies
+- ✅ **Semantic cache** — real embeddings (Ollama `nomic-embed-text`) when available, with a zero-dependency term-frequency fallback otherwise
 - ✅ **Tier router** — heuristic `local` / `mid` / `premium` classification so you know when a cheap model is enough
 - ✅ **Lazy-loaded skills** — Markdown files with frontmatter triggers, only the matched skill's body is read
+- ✅ **Simple agent** — `megabrain agent "<goal>"` splits a goal into steps and runs each one, reusing the same cache and tier router
 - ✅ **Live dashboard** — animated stats: total requests, cache hit rate, tokens saved, tier distribution
 - ✅ **PT / EN toggle** — remembered in `localStorage`
 - ✅ **Dark / light** — dark by default, same burnt orange and amber, cream paper in light mode
@@ -45,9 +48,11 @@ MegaBrain/
 │   ├── stats/          # Savings tracker
 │   ├── proxy/          # OpenAI/Anthropic-compatible drop-in proxy
 │   ├── dashboard/    # Live stats dashboard (PT/EN, dark/light)
+│   ├── agent/          # Goal-splitting agent runner
 │   ├── cli.ts
 │   └── index.ts
 ├── skills/
+├── docs/
 ├── tests/
 ├── LICENSE
 └── README.md
@@ -98,6 +103,7 @@ node dist/cli.js dashboard 4321
 3. On a miss, the request is classified into a tier (`local` / `mid` / `premium`) and forwarded to the real provider; the response is cached for next time.
 4. Open `megabrain dashboard` to watch requests, cache hit rate, tokens saved and tier distribution update live. Toggle **PT/EN** and **Dark/Light** in the header.
 5. Or skip the server entirely: `megabrain ask "<prompt>"`, `megabrain remember "<prompt>" "<response>"`, `megabrain stats`.
+6. Try the agent: `megabrain agent "Plan a 3-month guitar learning schedule"` — it plans up to 5 steps and runs each one against your configured model.
 
 ## 🔌 API Endpoints
 
@@ -114,7 +120,7 @@ node dist/cli.js dashboard 4321
 npm test
 ```
 
-Vitest covers tier classification (local/mid/premium) and semantic cache behavior (hit on reworded prompts, miss on unrelated ones, clear).
+Vitest covers tier classification (local/mid/premium), semantic cache behavior (hit on reworded prompts, miss on unrelated ones, clear) and — when a real embeddings server is reachable — a regression test ensuring two different prompts that share a large boilerplate template aren't confused as duplicates.
 
 ## 📄 License
 

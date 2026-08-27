@@ -9,6 +9,7 @@ import { StatsTracker } from "./stats/tracker.js";
 import { startProxy } from "./proxy/server.js";
 import { loadEnvFile } from "./proxy/env.js";
 import { startDashboard } from "./dashboard/server.js";
+import { runAgent } from "./agent/runner.js";
 
 loadEnvFile();
 
@@ -28,6 +29,7 @@ Comandos:
   proxy [porta]         Inicia o proxy compatível com OpenAI/Anthropic (default porta 8787)
   dashboard [porta]     Abre o dashboard visual de poupança (default porta 4321)
   start                 Liga tudo de uma vez: Ollama (se preciso), proxy e dashboard
+  agent "<objetivo>"    Corre um agente que divide o objetivo em passos e executa-os
 `);
 }
 
@@ -64,11 +66,11 @@ async function cmdStart(): Promise<void> {
   openBrowser("http://localhost:4321");
 }
 
-function cmdAsk(prompt: string): void {
-  const cached = cache.find(prompt);
+async function cmdAsk(prompt: string): Promise<void> {
+  const cached = await cache.find(prompt);
   if (cached) {
     stats.recordCacheHit(Math.ceil(prompt.length / 4));
-    console.log(`[cache hit] similaridade=${cached.similarity.toFixed(2)}`);
+    console.log(`[cache hit via ${cached.method}] similaridade=${cached.similarity.toFixed(2)}`);
     console.log(cached.entry.response);
     return;
   }
@@ -84,8 +86,8 @@ function cmdAsk(prompt: string): void {
   }
 }
 
-function cmdRemember(prompt: string, response: string): void {
-  cache.store(prompt, response);
+async function cmdRemember(prompt: string, response: string): Promise<void> {
+  await cache.store(prompt, response);
   console.log(`Guardado no cache. Total de entradas: ${cache.size}`);
 }
 
@@ -98,30 +100,37 @@ function cmdCacheClear(): void {
   console.log("Cache limpo.");
 }
 
-const [, , command, ...args] = process.argv;
+async function main(): Promise<void> {
+  const [, , command, ...args] = process.argv;
 
-switch (command) {
-  case "ask":
-    args[0] ? cmdAsk(args[0]) : printUsage();
-    break;
-  case "remember":
-    args[0] && args[1] ? cmdRemember(args[0], args[1]) : printUsage();
-    break;
-  case "stats":
-    cmdStats();
-    break;
-  case "cache":
-    args[0] === "clear" ? cmdCacheClear() : printUsage();
-    break;
-  case "proxy":
-    startProxy({ port: args[0] ? Number(args[0]) : 8787 });
-    break;
-  case "dashboard":
-    startDashboard(args[0] ? Number(args[0]) : 4321);
-    break;
-  case "start":
-    cmdStart();
-    break;
-  default:
-    printUsage();
+  switch (command) {
+    case "ask":
+      args[0] ? await cmdAsk(args[0]) : printUsage();
+      break;
+    case "remember":
+      args[0] && args[1] ? await cmdRemember(args[0], args[1]) : printUsage();
+      break;
+    case "stats":
+      cmdStats();
+      break;
+    case "cache":
+      args[0] === "clear" ? cmdCacheClear() : printUsage();
+      break;
+    case "proxy":
+      startProxy({ port: args[0] ? Number(args[0]) : 8787 });
+      break;
+    case "dashboard":
+      startDashboard(args[0] ? Number(args[0]) : 4321);
+      break;
+    case "start":
+      await cmdStart();
+      break;
+    case "agent":
+      args[0] ? await runAgent(args[0]) : printUsage();
+      break;
+    default:
+      printUsage();
+  }
 }
+
+main();

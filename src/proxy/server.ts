@@ -80,7 +80,7 @@ export function startProxy(options: ProxyOptions) {
     const body = JSON.parse(raw) as OpenAIChatRequest;
     const prompt = extractOpenAIPrompt(body);
 
-    const cached = cache.find(prompt);
+    const cached = await cache.find(prompt);
     if (cached) {
       stats.recordCacheHit(Math.ceil(prompt.length / 4));
       if (body.stream) {
@@ -105,13 +105,13 @@ export function startProxy(options: ProxyOptions) {
       res.writeHead(upstream.status, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
       const text = await pipeAndCollectText(upstream.body, (raw) => res.write(raw), extractOpenAIStreamDelta);
       res.end();
-      if (text) cache.store(prompt, text);
+      if (text) await cache.store(prompt, text);
       return;
     }
 
     const payload = await upstream.json();
     const text = extractOpenAIResponseText(payload);
-    if (text) cache.store(prompt, text);
+    if (text) await cache.store(prompt, text);
     sendJson(res, upstream.status, { ...payload, megabrain: { cache_hit: false, tier: decision.tier } });
   }
 
@@ -120,7 +120,7 @@ export function startProxy(options: ProxyOptions) {
     const body = JSON.parse(raw) as AnthropicMessagesRequest;
     const prompt = extractAnthropicPrompt(body);
 
-    const cached = cache.find(prompt);
+    const cached = await cache.find(prompt);
     if (cached) {
       stats.recordCacheHit(Math.ceil(prompt.length / 4));
       if (body.stream) {
@@ -146,13 +146,13 @@ export function startProxy(options: ProxyOptions) {
       res.writeHead(upstream.status, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
       const text = await pipeAndCollectText(upstream.body, (raw) => res.write(raw), extractAnthropicStreamDelta);
       res.end();
-      if (text) cache.store(prompt, text);
+      if (text) await cache.store(prompt, text);
       return;
     }
 
     const payload = await upstream.json();
     const text = extractAnthropicResponseText(payload);
-    if (text) cache.store(prompt, text);
+    if (text) await cache.store(prompt, text);
     sendJson(res, upstream.status, { ...payload, megabrain: { cache_hit: false, tier: decision.tier } });
   }
 
