@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ActivityChart from "./ActivityChart";
 import RequestsTable from "./RequestsTable";
+import TryItConsole from "./TryItConsole";
 
 interface Stats {
   totalRequests: number;
@@ -35,26 +36,22 @@ export default function StatsClient() {
   const [points, setPoints] = useState<DailyPoint[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
 
+  const refresh = useCallback(async () => {
+    const [statsRes, seriesRes, requestsRes] = await Promise.all([
+      fetch("/api/stats"),
+      fetch("/api/stats/timeseries"),
+      fetch("/api/requests"),
+    ]);
+    if (statsRes.ok) setStats(await statsRes.json());
+    if (seriesRes.ok) setPoints((await seriesRes.json()).points);
+    if (requestsRes.ok) setRequests((await requestsRes.json()).requests);
+  }, []);
+
   useEffect(() => {
-    let active = true;
-    async function refresh() {
-      const [statsRes, seriesRes, requestsRes] = await Promise.all([
-        fetch("/api/stats"),
-        fetch("/api/stats/timeseries"),
-        fetch("/api/requests"),
-      ]);
-      if (!active) return;
-      if (statsRes.ok) setStats(await statsRes.json());
-      if (seriesRes.ok) setPoints((await seriesRes.json()).points);
-      if (requestsRes.ok) setRequests((await requestsRes.json()).requests);
-    }
     refresh();
     const interval = setInterval(refresh, 5000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, []);
+    return () => clearInterval(interval);
+  }, [refresh]);
 
   const rate = stats.totalRequests > 0 ? Math.round((stats.cacheHits / stats.totalRequests) * 100) : 0;
   const maxTier = Math.max(1, stats.tierCounts.local, stats.tierCounts.mid, stats.tierCounts.premium);
@@ -66,6 +63,11 @@ export default function StatsClient() {
         <Stat icon="⚡" label="Cache hits" value={stats.cacheHits} />
         <Stat icon="%" label="Hit rate" value={`${rate}%`} />
         <Stat icon="◎" label="Tokens saved" value={stats.tokensSavedEstimate} />
+      </div>
+
+      <div className="mb-card p-6">
+        <h3 className="font-semibold mb-4">Try it</h3>
+        <TryItConsole onDone={refresh} />
       </div>
 
       <div className="mb-card p-6">
