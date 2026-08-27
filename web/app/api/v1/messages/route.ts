@@ -4,6 +4,7 @@ import { getUserApiKey } from "@/lib/keys";
 import { findCached, storeCache } from "@/lib/cache";
 import { route } from "@/lib/router";
 import { recordCacheHit, recordRoute } from "@/lib/stats";
+import { logRequest } from "@/lib/requestLog";
 
 interface AnthropicRequest {
   model: string;
@@ -34,7 +35,9 @@ export async function POST(req: NextRequest) {
 
   const cached = await findCached(userId, prompt);
   if (cached) {
-    await recordCacheHit(userId, Math.ceil(prompt.length / 4));
+    const tokensEstimate = Math.ceil(prompt.length / 4);
+    await recordCacheHit(userId, tokensEstimate);
+    await logRequest(userId, { endpoint: "messages", provider: "anthropic", model: body.model, cacheHit: true, tokensEstimate });
     return NextResponse.json({
       id: `megabrain-cache-${Date.now()}`,
       type: "message",
@@ -49,6 +52,14 @@ export async function POST(req: NextRequest) {
 
   const decision = route(prompt);
   await recordRoute(userId, decision.tier);
+  await logRequest(userId, {
+    endpoint: "messages",
+    provider: "anthropic",
+    model: body.model,
+    tier: decision.tier,
+    cacheHit: false,
+    tokensEstimate: Math.ceil(prompt.length / 4),
+  });
 
   const upstream = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",

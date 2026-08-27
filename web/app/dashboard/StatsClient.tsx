@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ActivityChart from "./ActivityChart";
+import RequestsTable from "./RequestsTable";
 
 interface Stats {
   totalRequests: number;
@@ -9,19 +11,45 @@ interface Stats {
   tokensSavedEstimate: number;
 }
 
+interface DailyPoint {
+  day: string;
+  requests: number;
+  cacheHits: number;
+  tokensSaved: number;
+}
+
+interface RequestRow {
+  endpoint: string;
+  provider: string;
+  model: string | null;
+  tier: string | null;
+  cache_hit: boolean;
+  tokens_estimate: number;
+  created_at: string;
+}
+
 const EMPTY: Stats = { totalRequests: 0, cacheHits: 0, tierCounts: { local: 0, mid: 0, premium: 0 }, tokensSavedEstimate: 0 };
 
 export default function StatsClient() {
   const [stats, setStats] = useState<Stats>(EMPTY);
+  const [points, setPoints] = useState<DailyPoint[]>([]);
+  const [requests, setRequests] = useState<RequestRow[]>([]);
 
   useEffect(() => {
     let active = true;
     async function refresh() {
-      const res = await fetch("/api/stats");
-      if (res.ok && active) setStats(await res.json());
+      const [statsRes, seriesRes, requestsRes] = await Promise.all([
+        fetch("/api/stats"),
+        fetch("/api/stats/timeseries"),
+        fetch("/api/requests"),
+      ]);
+      if (!active) return;
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (seriesRes.ok) setPoints((await seriesRes.json()).points);
+      if (requestsRes.ok) setRequests((await requestsRes.json()).requests);
     }
     refresh();
-    const interval = setInterval(refresh, 4000);
+    const interval = setInterval(refresh, 5000);
     return () => {
       active = false;
       clearInterval(interval);
@@ -34,10 +62,31 @@ export default function StatsClient() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Total requests" value={stats.totalRequests} />
-        <Stat label="Cache hits" value={stats.cacheHits} />
-        <Stat label="Hit rate" value={`${rate}%`} />
-        <Stat label="Tokens saved" value={stats.tokensSavedEstimate} />
+        <Stat icon="◆" label="Total requests" value={stats.totalRequests} />
+        <Stat icon="⚡" label="Cache hits" value={stats.cacheHits} />
+        <Stat icon="%" label="Hit rate" value={`${rate}%`} />
+        <Stat icon="◎" label="Tokens saved" value={stats.tokensSavedEstimate} />
+      </div>
+
+      <div className="mb-card p-6">
+        <h3 className="font-semibold mb-4">Activity (last 14 days)</h3>
+        {points.length > 0 ? (
+          <ActivityChart points={points} />
+        ) : (
+          <p className="text-sm opacity-50 py-6 text-center">No activity yet.</p>
+        )}
+        <div className="flex gap-4 mt-3 text-xs opacity-60">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "var(--border)" }} /> requests
+          </span>
+          <span className="flex items-center gap-1">
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-sm"
+              style={{ background: "linear-gradient(180deg, var(--amber), var(--orange))" }}
+            />{" "}
+            cache hits
+          </span>
+        </div>
       </div>
 
       <div className="mb-card p-6">
@@ -58,14 +107,22 @@ export default function StatsClient() {
           </div>
         ))}
       </div>
+
+      <div className="mb-card p-6">
+        <h3 className="font-semibold mb-4">Recent requests</h3>
+        <RequestsTable requests={requests} />
+      </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ icon, label, value }: { icon: string; label: string; value: string | number }) {
   return (
     <div className="mb-card p-5">
-      <div className="text-xs uppercase tracking-wide opacity-60">{label}</div>
+      <div className="flex items-center justify-between">
+        <div className="text-xs uppercase tracking-wide opacity-60">{label}</div>
+        <div className="text-sm opacity-40">{icon}</div>
+      </div>
       <div className="text-3xl font-bold mt-2" style={{ color: "var(--orange)" }}>
         {value}
       </div>

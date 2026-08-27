@@ -38,3 +38,18 @@ export async function GET() {
   }[];
   return NextResponse.json({ keys: rows });
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+
+  const { provider } = (await req.json()) as { provider?: string };
+  if (provider !== "openai" && provider !== "anthropic" && provider !== "gemini") {
+    return NextResponse.json({ error: "provider inválido" }, { status: 400 });
+  }
+
+  const db = sql();
+  await db`DELETE FROM api_keys WHERE user_id = ${userId} AND provider = ${provider}`;
+  return NextResponse.json({ ok: true });
+}

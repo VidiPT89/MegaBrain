@@ -19,7 +19,7 @@ npm run dev
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub → Settings → Developer settings → OAuth Apps → New OAuth App. Callback URL: `http://localhost:3000/api/auth/callback/github` (or your deployed domain) |
 | `MEGABRAIN_ENCRYPTION_KEY` | Any long random string — used to encrypt stored API keys |
 
-The database schema (`users`, `api_keys`, `cache_entries`, `usage_stats`) is created automatically the first time `ensureSchema()` runs — call it once from a setup script or the first deploy.
+The database schema (`users`, `api_keys`, `cache_entries`, `usage_stats`, `request_log`) is created automatically the first time `ensureSchema()` runs — call it once from a setup script or the first deploy.
 
 ## Deploy (Vercel + Neon)
 
@@ -39,4 +39,8 @@ The database schema (`users`, `api_keys`, `cache_entries`, `usage_stats`) is cre
 | POST | `/api/v1/chat/completions` | OpenAI-compatible proxy; uses the signed-in user's OpenAI key, or falls back to their Gemini key via Google's OpenAI-compatible endpoint |
 | POST | `/api/v1/messages` | Anthropic-compatible proxy, uses the signed-in user's stored key |
 | GET | `/api/stats` | Signed-in user's savings stats |
+| GET | `/api/stats/timeseries` | Daily requests/cache-hits/tokens-saved for the last 14 days, powers the dashboard chart |
+| GET | `/api/requests` | Signed-in user's most recent 50 requests (endpoint, provider, model, tier, hit/miss) |
 | POST | `/api/settings/key` | Save an encrypted API key for the signed-in user |
+| GET | `/api/settings/key` | List the signed-in user's stored providers |
+| DELETE | `/api/settings/key` | Remove a stored key for a given provider |

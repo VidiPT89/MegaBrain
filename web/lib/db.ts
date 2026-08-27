@@ -49,4 +49,18 @@ export async function ensureSchema(): Promise<void> {
       tokens_saved_estimate INTEGER NOT NULL DEFAULT 0
     )
   `;
+  await db`
+    CREATE TABLE IF NOT EXISTS request_log (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT,
+      tier TEXT,
+      cache_hit BOOLEAN NOT NULL,
+      tokens_estimate INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS request_log_user_id_created_at_idx ON request_log(user_id, created_at DESC)`;
 }

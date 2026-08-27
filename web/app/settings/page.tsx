@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const PLACEHOLDERS: Record<string, string> = {
   anthropic: "sk-ant-...",
@@ -8,10 +8,31 @@ const PLACEHOLDERS: Record<string, string> = {
   gemini: "AIza...",
 };
 
+const LABELS: Record<string, string> = {
+  gemini: "Gemini",
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+};
+
+interface StoredKey {
+  provider: string;
+  updated_at: string;
+}
+
 export default function SettingsPage() {
   const [provider, setProvider] = useState<"openai" | "anthropic" | "gemini">("gemini");
   const [apiKey, setApiKey] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [keys, setKeys] = useState<StoredKey[]>([]);
+
+  async function loadKeys() {
+    const res = await fetch("/api/settings/key");
+    if (res.ok) setKeys((await res.json()).keys);
+  }
+
+  useEffect(() => {
+    loadKeys();
+  }, []);
 
   async function save() {
     setStatus("A guardar...");
@@ -23,10 +44,20 @@ export default function SettingsPage() {
     if (res.ok) {
       setStatus("Guardada.");
       setApiKey("");
+      loadKeys();
     } else {
       const data = await res.json();
       setStatus(`Erro: ${data.error}`);
     }
+  }
+
+  async function remove(providerToRemove: string) {
+    await fetch("/api/settings/key", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: providerToRemove }),
+    });
+    loadKeys();
   }
 
   return (
@@ -35,6 +66,23 @@ export default function SettingsPage() {
       <p className="opacity-70 text-sm">
         Your key is encrypted before it&apos;s stored and is only decrypted server-side to forward your requests.
       </p>
+
+      {keys.length > 0 && (
+        <div className="mb-card p-6 space-y-3">
+          <p className="font-semibold text-sm">Your keys</p>
+          {keys.map((k) => (
+            <div key={k.provider} className="flex items-center justify-between text-sm">
+              <span>
+                {LABELS[k.provider] ?? k.provider}{" "}
+                <span className="opacity-50">· added {new Date(k.updated_at).toLocaleDateString()}</span>
+              </span>
+              <button className="mb-pill" onClick={() => remove(k.provider)}>
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="mb-card p-6 space-y-4">
         <div className="flex gap-2">
