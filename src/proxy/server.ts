@@ -21,10 +21,6 @@ import {
   type AnthropicMessagesRequest,
 } from "./adapters.js";
 
-function getOpenAIBaseUrl(): string {
-  return process.env.MEGABRAIN_OPENAI_BASE_URL ?? "https://api.openai.com";
-}
-
 function getAnthropicBaseUrl(): string {
   return process.env.MEGABRAIN_ANTHROPIC_BASE_URL ?? "https://api.anthropic.com";
 }
@@ -164,7 +160,11 @@ export function startProxy(options: ProxyOptions) {
 
   server.listen(options.port, () => {
     console.log(`MegaBrain proxy a correr em http://localhost:${options.port}`);
-    console.log(`  OpenAI:    POST /v1/chat/completions  -> ${getOpenAIBaseUrl()}`);
+    console.log(`  POST /v1/chat/completions (tier -> provider escolhido):`);
+    for (const tier of ["local", "mid", "premium"] as const) {
+      const target = resolveProvider(tier);
+      console.log(`    ${tier.padEnd(7)} -> ${target.provider} (${target.baseUrl})`);
+    }
     console.log(`  Anthropic: POST /v1/messages          -> ${getAnthropicBaseUrl()}`);
   });
 

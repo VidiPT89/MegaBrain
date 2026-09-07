@@ -1,30 +1,21 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { SemanticCache } from "../cache/semantic-cache.js";
-import { route } from "../router/tier-router.js";
+import { route, type Tier } from "../router/tier-router.js";
+import { resolveProvider } from "../router/provider-router.js";
 import { matchSkills } from "../skills/loader.js";
 import { loadRules } from "../rules/loader.js";
 import { MemoryStore } from "../memory/store.js";
 import { builtinTools, describeTools, findTool, type Tool } from "../tools/registry.js";
 import { connectConfiguredMcpServers, type McpClient } from "../mcp/client.js";
 
-function getBaseUrl(): string {
-  return process.env.MEGABRAIN_OPENAI_BASE_URL ?? "https://api.openai.com";
-}
-
-function getModel(): string {
-  return process.env.MEGABRAIN_AGENT_MODEL ?? "qwen2.5-coder:7b";
-}
-
-function getApiKey(): string {
-  return process.env.OPENAI_API_KEY ?? "";
-}
-
-async function callModelRaw(prompt: string): Promise<string> {
-  const res = await fetch(`${getBaseUrl()}/v1/chat/completions`, {
+async function callModelRaw(prompt: string, tier: Tier): Promise<string> {
+  const target = resolveProvider(tier);
+  const model = process.env.MEGABRAIN_AGENT_MODEL ?? target.model ?? "qwen2.5-coder:7b";
+  const res = await fetch(`${target.baseUrl}/v1/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
-    body: JSON.stringify({ model: getModel(), messages: [{ role: "user", content: prompt }] }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${target.apiKey}` },
+    body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }] }),
   });
 
   if (!res.ok) {
@@ -144,7 +135,7 @@ Final Answer: <resposta final completa>`;
       // Sem cache aqui de propósito: o transcript cresce a cada iteração e a
       // diferença entre duas versões é pequena face ao texto acumulado, o
       // que causava falsos positivos de cache mesmo sem repetição real.
-      const raw = await callModelRaw(transcript);
+      const raw = await callModelRaw(transcript, decision.tier);
       const step = parseModelStep(raw);
 
       if (step.thought) console.log(`Thought: ${step.thought}`);
