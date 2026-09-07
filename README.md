@@ -17,7 +17,7 @@ This repo has two ways to run it:
 - ✅ **Drop-in proxy** — `/v1/chat/completions` (OpenAI) and `/v1/messages` (Anthropic), same request/response shape
 - ✅ **Streaming support** — `stream: true` works end-to-end, including instant streamed replies on cache hits
 - ✅ **Semantic cache** — real embeddings (Ollama `nomic-embed-text`) when available, with a zero-dependency term-frequency fallback otherwise
-- ✅ **Tier router** — heuristic `local` / `mid` / `premium` classification so you know when a cheap model is enough
+- ✅ **Tier router** — heuristic `local` / `mid` / `premium` classification, then auto-picks the cheapest configured provider for that tier (Ollama → Groq/Gemini free tier → paid fallback)
 - ✅ **Lazy-loaded skills** — Markdown files with frontmatter triggers, only the matched skill's body is read
 - ✅ **Agent with real tool use** — `megabrain agent "<goal>"` runs a ReAct loop (Thought → Action → Observation) with built-in tools (`read_file`, `write_file`, `list_dir`, opt-in `run_shell`) and any [MCP](https://modelcontextprotocol.io) server you configure
 - ✅ **Persistent memory** — `megabrain memory add "<fact>"` stores facts across runs; the agent pulls in the ones relevant to its current goal
@@ -107,11 +107,31 @@ node dist/cli.js proxy 8787
 node dist/cli.js dashboard 4321
 ```
 
+### One-command setup
+
+```bash
+megabrain init
+```
+
+Detects a local Ollama install, writes a working `.env` for you (free/local by default, or commented-out slots for paid keys otherwise), and shows the tier a sample prompt would get routed to — so you see the router working before spending a single token.
+
+### Cheapest-capable provider per tier
+
+On the OpenAI-compatible endpoint (`/v1/chat/completions`), MegaBrain doesn't just classify a prompt's tier — it also picks the cheapest provider that can serve that tier, based on which keys you've set:
+
+| Tier | Tries, in order | Env vars |
+|------|------------------|----------|
+| `local` | Ollama (free, local) | `MEGABRAIN_LOCAL_BASE_URL`, `MEGABRAIN_LOCAL_MODEL` |
+| `mid` | Groq → Gemini free tier → premium fallback | `MEGABRAIN_GROQ_API_KEY`, `MEGABRAIN_GEMINI_API_KEY` (+ matching `_BASE_URL`/`_MODEL` overrides) |
+| `premium` | OpenAI (or your `MEGABRAIN_OPENAI_BASE_URL`) | `OPENAI_API_KEY` |
+
+Set only the keys you have — anything unconfigured is skipped and MegaBrain falls back to the premium provider, exactly like before. The response's `megabrain.provider` field tells you which one actually served the request.
+
 ## 📖 Usage
 
 1. Start `megabrain proxy` and point your app's `base_url` at `http://localhost:8787` instead of the real provider — no other code changes.
 2. Every request is checked against the semantic cache first; a hit returns instantly with `usage: 0` and `megabrain.cache_hit: true`.
-3. On a miss, the request is classified into a tier (`local` / `mid` / `premium`) and forwarded to the real provider; the response is cached for next time.
+3. On a miss, the request is classified into a tier (`local` / `mid` / `premium`), routed to the cheapest provider configured for that tier, and forwarded; the response is cached for next time.
 4. Open `megabrain dashboard` to watch requests, cache hit rate, tokens saved and tier distribution update live. Toggle **PT/EN** and **Dark/Light** in the header.
 5. Or skip the server entirely: `megabrain ask "<prompt>"`, `megabrain remember "<prompt>" "<response>"`, `megabrain stats`.
 6. Try the agent: `megabrain agent "Read package.json and tell me the project name"` — it reasons, picks a tool, reads the observation, and repeats until it has a final answer.

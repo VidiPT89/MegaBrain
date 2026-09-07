@@ -2,6 +2,7 @@
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { existsSync, writeFileSync } from "node:fs";
 import { SemanticCache } from "./cache/semantic-cache.js";
 import { route } from "./router/tier-router.js";
 import { matchSkills } from "./skills/loader.js";
@@ -31,6 +32,7 @@ Comandos:
   cache clear           Limpa o cache semântico
   proxy [porta]         Inicia o proxy compatível com OpenAI/Anthropic (default porta 8787)
   dashboard [porta]     Abre o dashboard visual de poupança (default porta 4321)
+  init                   Configura o .env (deteta Ollama, pergunta chaves) e mostra a primeira poupança
   start                 Liga tudo de uma vez: Ollama (se preciso), proxy e dashboard
   agent "<objetivo>"    Corre um agente (regras + memórias + skills + tools + MCP) para o objetivo
   memory add "<facto>"  Guarda um facto na memória persistente
@@ -51,6 +53,39 @@ async function isOllamaRunning(): Promise<boolean> {
 function openBrowser(url: string): void {
   const command = platform() === "darwin" ? "open" : platform() === "win32" ? "start" : "xdg-open";
   spawn(command, [url], { detached: true, stdio: "ignore" }).unref();
+}
+
+async function cmdInit(): Promise<void> {
+  const envPath = join(process.cwd(), ".env");
+  const ollamaUp = await isOllamaRunning();
+
+  if (!existsSync(envPath)) {
+    const lines = ollamaUp
+      ? [
+          "# MegaBrain: Ollama local detetado, a usar por omissão (grátis, sem chave)",
+          "MEGABRAIN_OPENAI_BASE_URL=http://localhost:11434",
+          "OPENAI_API_KEY=ollama",
+        ]
+      : [
+          "# MegaBrain: Ollama não detetado. Instala com `brew install ollama` ou preenche uma chave paga abaixo.",
+          "# OPENAI_API_KEY=sk-...",
+          "# ANTHROPIC_API_KEY=sk-ant-...",
+          "# Tiers mid mais baratos (opcional): MEGABRAIN_GROQ_API_KEY / MEGABRAIN_GEMINI_API_KEY",
+        ];
+    writeFileSync(envPath, lines.join("\n") + "\n", "utf-8");
+    console.log(`.env criado em ${envPath}`);
+  } else {
+    console.log(`.env já existe em ${envPath} — não foi alterado.`);
+  }
+
+  console.log(ollamaUp ? "Ollama local: a correr ✅" : "Ollama local: não detetado (opcional, mas free)");
+
+  const sample = "resume isto: o MegaBrain acabou de ser configurado";
+  const decision = route(sample);
+  console.log(`\nTeste com um pedido de exemplo: "${sample}"`);
+  console.log(`  tier recomendado: ${decision.tier} (${decision.reason})`);
+  console.log(`  tokens estimados: ~${decision.estimatedTokens}`);
+  console.log(`\nPróximo passo: \`megabrain start\` liga o proxy + dashboard e mostra a poupança ao vivo.`);
 }
 
 async function cmdStart(): Promise<void> {
@@ -157,6 +192,9 @@ async function main(): Promise<void> {
       break;
     case "dashboard":
       startDashboard(args[0] ? Number(args[0]) : 4321);
+      break;
+    case "init":
+      await cmdInit();
       break;
     case "start":
       await cmdStart();

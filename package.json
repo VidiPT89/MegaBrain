@@ -1,5 +1,5 @@
 {
-  "name": "megabrain",
+  "name": "megabrain-cli",
   "version": "0.1.0",
   "description": "Drop-in OpenAI/Anthropic-compatible proxy and CLI that cut LLM token spend with semantic caching, tier routing and a live savings dashboard. Bilingual PT/EN, dark and light.",
   "type": "module",
@@ -7,15 +7,25 @@
     "megabrain": "./dist/cli.js"
   },
   "main": "./dist/index.js",
+  "files": ["dist", "skills", "rules", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js start",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["ai", "llm", "token-savings", "router", "cache", "cli"],
+  "keywords": ["ai", "llm", "token-savings", "router", "cache", "cli", "proxy", "openai", "anthropic", "gemini"],
   "license": "MIT",
   "author": "David Arsénio Martins",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VidiPT89/MegaBrain.git"
+  },
+  "homepage": "https://github.com/VidiPT89/MegaBrain#readme",
+  "bugs": {
+    "url": "https://github.com/VidiPT89/MegaBrain/issues"
+  },
   "engines": {
     "node": ">=18"
   },

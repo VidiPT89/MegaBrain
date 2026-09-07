@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { SemanticCache } from "../cache/semantic-cache.js";
 import { route } from "../router/tier-router.js";
+import { resolveProvider } from "../router/provider-router.js";
 import { StatsTracker } from "../stats/tracker.js";
 import {
   extractOpenAIPrompt,
@@ -94,11 +95,16 @@ export function startProxy(options: ProxyOptions) {
     const decision = route(prompt);
     stats.recordRoute(decision.tier);
 
-    const apiKey = req.headers.authorization ?? `Bearer ${process.env.OPENAI_API_KEY ?? ""}`;
-    const upstream = await fetch(`${getOpenAIBaseUrl()}/v1/chat/completions`, {
+    const target = resolveProvider(decision.tier);
+    const outgoingBody = target.model ? JSON.stringify({ ...body, model: target.model }) : raw;
+    const apiKey =
+      target.provider === "openai"
+        ? req.headers.authorization ?? `Bearer ${target.apiKey}`
+        : `Bearer ${target.apiKey}`;
+    const upstream = await fetch(`${target.baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: apiKey as string },
-      body: raw,
+      body: outgoingBody,
     });
 
     if (body.stream && upstream.body) {
@@ -112,7 +118,7 @@ export function startProxy(options: ProxyOptions) {
     const payload = await upstream.json();
     const text = extractOpenAIResponseText(payload);
     if (text) await cache.store(prompt, text);
-    sendJson(res, upstream.status, { ...payload, megabrain: { cache_hit: false, tier: decision.tier } });
+    sendJson(res, upstream.status, { ...payload, megabrain: { cache_hit: false, tier: decision.tier, provider: target.provider } });
   }
 
   async function handleAnthropic(req: IncomingMessage, res: ServerResponse): Promise<void> {
