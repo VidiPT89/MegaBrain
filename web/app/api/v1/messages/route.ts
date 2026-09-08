@@ -99,7 +99,11 @@ export async function POST(req: NextRequest) {
   if (cacheable && text) await storeCache(userId, prompt, text);
 
   const cacheReadTokens = payload?.usage?.cache_read_input_tokens;
-  if (typeof cacheReadTokens === "number" && cacheReadTokens > 0) await recordProviderCacheRead(userId, cacheReadTokens);
+  if (typeof cacheReadTokens === "number" && cacheReadTokens > 0) {
+    // Best-effort: nunca deixar uma falha aqui (ex. migração da coluna ainda não corrida) quebrar
+    // a resposta ao utilizador, que já pagou os tokens do pedido real.
+    recordProviderCacheRead(userId, cacheReadTokens).catch((err) => console.error("recordProviderCacheRead falhou:", err));
+  }
 
   return NextResponse.json({ ...payload, megabrain: { cache_hit: false, tier: decision.tier } }, { status: upstream.status });
 }
