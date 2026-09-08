@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { homedir, platform } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from "node:fs";
 import { SemanticCache } from "./cache/semantic-cache.js";
 import { route } from "./router/tier-router.js";
 import { matchSkills } from "./skills/loader.js";
@@ -16,6 +17,7 @@ import { McpClient } from "./mcp/client.js";
 
 loadEnvFile();
 
+const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HOME = join(homedir(), ".megabrain");
 const cache = new SemanticCache(join(HOME, "cache.json"));
 const stats = new StatsTracker(join(HOME, "stats.json"));
@@ -55,9 +57,30 @@ function openBrowser(url: string): void {
   spawn(command, [url], { detached: true, stdio: "ignore" }).unref();
 }
 
+/**
+ * Copia as skills/regras de exemplo do pacote instalado para a pasta atual,
+ * se ainda não existir lá nada. Sem isto, `megabrain agent`/`ask` procuram
+ * skills/regras em `process.cwd()` e nunca encontram as de exemplo que vêm
+ * dentro do pacote — o agente arranca sempre "vazio" na primeira utilização.
+ */
+function scaffoldDir(name: "skills" | "rules"): void {
+  const target = join(process.cwd(), name);
+  const source = join(PACKAGE_ROOT, name);
+  if (existsSync(target) || !existsSync(source)) return;
+
+  mkdirSync(target, { recursive: true });
+  for (const file of readdirSync(source)) {
+    copyFileSync(join(source, file), join(target, file));
+  }
+  console.log(`${name}/ criado com exemplos em ${target}`);
+}
+
 async function cmdInit(): Promise<void> {
   const envPath = join(process.cwd(), ".env");
   const ollamaUp = await isOllamaRunning();
+
+  scaffoldDir("skills");
+  scaffoldDir("rules");
 
   if (!existsSync(envPath)) {
     const lines = ollamaUp
@@ -86,6 +109,7 @@ async function cmdInit(): Promise<void> {
   console.log(`  tier recomendado: ${decision.tier} (${decision.reason})`);
   console.log(`  tokens estimados: ~${decision.estimatedTokens}`);
   console.log(`\nPróximo passo: \`megabrain start\` liga o proxy + dashboard e mostra a poupança ao vivo.`);
+  console.log(`Já tens skills/ e rules/ com exemplos nesta pasta — experimenta \`megabrain agent "<objetivo>"\`.`);
 }
 
 async function cmdStart(): Promise<void> {

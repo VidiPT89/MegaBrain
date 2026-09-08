@@ -113,7 +113,7 @@ node dist/cli.js dashboard 4321
 megabrain init
 ```
 
-Detects a local Ollama install, writes a working `.env` for you (free/local by default, or commented-out slots for paid keys otherwise), and shows the tier a sample prompt would get routed to — so you see the router working before spending a single token.
+Detects a local Ollama install, writes a working `.env` for you (free/local by default, or commented-out slots for paid keys otherwise), scaffolds a starter `skills/` and `rules/` folder in your project (copied from the package, so `megabrain agent` has something to work with immediately instead of finding empty folders), and shows the tier a sample prompt would get routed to — so you see the router working before spending a single token.
 
 ### Cheapest-capable provider per tier
 

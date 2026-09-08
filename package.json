@@ -1,6 +1,6 @@
 {
   "name": "megabrain-cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Drop-in OpenAI/Anthropic-compatible proxy and CLI that cut LLM token spend with semantic caching, tier routing and a live savings dashboard. Bilingual PT/EN, dark and light.",
   "type": "module",
   "bin": {
