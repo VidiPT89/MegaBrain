@@ -44,6 +44,54 @@ export function isMultiTurn(messages: { role: string }[]): boolean {
   return messages.filter((m) => m.role === "user" || m.role === "assistant").length > 1;
 }
 
+interface AnthropicContentBlock {
+  type: string;
+  text?: string;
+  cache_control?: unknown;
+  [key: string]: unknown;
+}
+
+type AnthropicContent = string | AnthropicContentBlock[];
+
+function withCacheControl(content: AnthropicContent): AnthropicContentBlock[] {
+  const blocks: AnthropicContentBlock[] = typeof content === "string" ? [{ type: "text", text: content }] : [...content];
+  if (blocks.length === 0) return blocks;
+  const lastIndex = blocks.length - 1;
+  if (blocks[lastIndex].cache_control) return blocks; // já marcado pelo próprio cliente — não sobrepor
+  blocks[lastIndex] = { ...blocks[lastIndex], cache_control: { type: "ephemeral" } };
+  return blocks;
+}
+
+/**
+ * Marca breakpoints de "prompt caching" nativo da Anthropic (`cache_control:
+ * {type: "ephemeral"}`) no system prompt e no fim do turno anterior, para o
+ * próprio provider cachear esse prefixo (~90% de desconto nesses tokens nas
+ * chamadas seguintes que o repitam). Isto resolve, do lado do provider, o
+ * mesmo problema para o qual desativámos o NOSSO cache semântico em conversas
+ * multi-turn (ver isMultiTurn acima): aqui não há risco de cruzar respostas
+ * entre conversas diferentes, porque quem decide o que é "igual" é sempre a
+ * Anthropic, a olhar para o prefixo exato, não uma heurística de similaridade
+ * nossa. Blocos já marcados pelo cliente ou pequenos demais para o mínimo de
+ * tokens cacheável são simplesmente ignorados pela Anthropic, sem erro.
+ */
+export function injectAnthropicPromptCaching(body: AnthropicMessagesRequest): AnthropicMessagesRequest {
+  const next: AnthropicMessagesRequest = { ...body };
+
+  if (typeof body.system === "string" || Array.isArray(body.system)) {
+    next.system = withCacheControl(body.system as AnthropicContent);
+  }
+
+  if (Array.isArray(body.messages) && body.messages.length > 1) {
+    const messages = [...body.messages];
+    const previousTurnIndex = messages.length - 2; // cacheia tudo até ao turno anterior; a última mensagem é sempre nova
+    const target = messages[previousTurnIndex];
+    messages[previousTurnIndex] = { ...target, content: withCacheControl(target.content as AnthropicContent) };
+    next.messages = messages;
+  }
+
+  return next;
+}
+
 export function buildOpenAICacheResponse(model: string, content: string) {
   return {
     id: `megabrain-cache-${Date.now()}`,

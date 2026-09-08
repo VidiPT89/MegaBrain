@@ -171,6 +171,10 @@ export function renderDashboard(): string {
         <div class="label" data-i18n="tokensSaved">Tokens poupados</div>
         <div class="value" id="stat-tokens">0</div>
       </div>
+      <div class="card">
+        <div class="label" data-i18n="providerCacheRead">Anthropic prompt cache</div>
+        <div class="value" id="stat-provider-cache">0</div>
+      </div>
     </section>
 
     <section class="panel">
@@ -217,6 +221,7 @@ export function renderDashboard(): string {
       cacheHits: "Cache hits",
       hitRate: "Taxa de acerto",
       tokensSaved: "Tokens poupados",
+      providerCacheRead: "Anthropic prompt cache",
       tierTitle: "Distribuição por tier",
       providerTitle: "Distribuição por provider",
       footerCredit: "Developed by David Arsénio Martins",
@@ -229,6 +234,7 @@ export function renderDashboard(): string {
       cacheHits: "Cache hits",
       hitRate: "Hit rate",
       tokensSaved: "Tokens saved",
+      providerCacheRead: "Anthropic prompt cache",
       tierTitle: "Tier distribution",
       providerTitle: "Provider distribution",
       footerCredit: "Developed by David Arsénio Martins",
@@ -288,6 +294,7 @@ export function renderDashboard(): string {
       const hits = data.cacheHits || 0;
       const rate = total > 0 ? Math.round((hits / total) * 100) : 0;
       const tokens = data.tokensSavedEstimate || 0;
+      const providerCacheRead = data.providerCacheReadTokens || 0;
       const tiers = data.tierCounts || { local: 0, mid: 0, premium: 0 };
       const maxTier = Math.max(1, tiers.local || 0, tiers.mid || 0, tiers.premium || 0);
 
@@ -295,6 +302,7 @@ export function renderDashboard(): string {
       animateNumber(document.getElementById("stat-hits"), hits);
       document.getElementById("stat-rate").textContent = rate + "%";
       animateNumber(document.getElementById("stat-tokens"), tokens);
+      animateNumber(document.getElementById("stat-provider-cache"), providerCacheRead);
 
       document.getElementById("bar-local").style.width = ((tiers.local || 0) / maxTier) * 100 + "%";
       document.getElementById("bar-mid").style.width = ((tiers.mid || 0) / maxTier) * 100 + "%";

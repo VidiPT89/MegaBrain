@@ -7,6 +7,8 @@ export interface StatsSnapshot {
   tierCounts: Record<string, number>;
   providerCounts: Record<string, number>;
   tokensSavedEstimate: number;
+  /** Tokens que a própria Anthropic serviu a partir do prompt cache dela (usage.cache_read_input_tokens), não do nosso cache. */
+  providerCacheReadTokens: number;
 }
 
 const EMPTY: StatsSnapshot = {
@@ -15,6 +17,7 @@ const EMPTY: StatsSnapshot = {
   tierCounts: { local: 0, mid: 0, premium: 0 },
   providerCounts: {},
   tokensSavedEstimate: 0,
+  providerCacheReadTokens: 0,
 };
 
 export class StatsTracker {
@@ -48,6 +51,11 @@ export class StatsTracker {
 
   recordProvider(provider: string): void {
     this.data.providerCounts[provider] = (this.data.providerCounts[provider] ?? 0) + 1;
+    this.persist();
+  }
+
+  recordProviderCacheRead(tokens: number): void {
+    this.data.providerCacheReadTokens += tokens;
     this.persist();
   }
 

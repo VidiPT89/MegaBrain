@@ -18,6 +18,13 @@ export async function recordCacheHit(userId: string, tokensSaved: number): Promi
   `;
 }
 
+/** Tokens que a própria Anthropic serviu a partir do prompt cache dela (usage.cache_read_input_tokens), não do nosso cache. */
+export async function recordProviderCacheRead(userId: string, tokens: number): Promise<void> {
+  await ensureRow(userId);
+  const db = sql();
+  await db`UPDATE usage_stats SET provider_cache_read_tokens = provider_cache_read_tokens + ${tokens} WHERE user_id = ${userId}`;
+}
+
 export async function recordRoute(userId: string, tier: Tier): Promise<void> {
   await ensureRow(userId);
   const db = sql();
@@ -41,5 +48,6 @@ export async function getStats(userId: string) {
     cacheHits: row?.cache_hits ?? 0,
     tierCounts: { local: row?.tier_local ?? 0, mid: row?.tier_mid ?? 0, premium: row?.tier_premium ?? 0 },
     tokensSavedEstimate: row?.tokens_saved_estimate ?? 0,
+    providerCacheReadTokens: row?.provider_cache_read_tokens ?? 0,
   };
 }

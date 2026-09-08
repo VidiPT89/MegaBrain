@@ -9,6 +9,7 @@ import {
   extractOpenAIPrompt,
   extractAnthropicPrompt,
   isMultiTurn,
+  injectAnthropicPromptCaching,
   buildOpenAICacheResponse,
   buildAnthropicCacheResponse,
   buildOpenAIStreamCacheEvents,
@@ -147,10 +148,12 @@ export function startProxy(options: ProxyOptions) {
 
     const apiKey = (req.headers["x-api-key"] as string) ?? process.env.ANTHROPIC_API_KEY ?? "";
     const version = (req.headers["anthropic-version"] as string) ?? "2023-06-01";
+    const outgoingBody =
+      process.env.MEGABRAIN_DISABLE_PROMPT_CACHING === "true" ? raw : JSON.stringify(injectAnthropicPromptCaching(body));
     const upstream = await fetch(`${getAnthropicBaseUrl()}/v1/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": version },
-      body: raw,
+      body: outgoingBody,
     });
 
     if (body.stream && upstream.body) {
@@ -164,6 +167,8 @@ export function startProxy(options: ProxyOptions) {
     const payload = await upstream.json();
     const text = extractAnthropicResponseText(payload);
     if (cacheable && text) await cache.store(prompt, text);
+    const cacheReadTokens = payload?.usage?.cache_read_input_tokens;
+    if (typeof cacheReadTokens === "number" && cacheReadTokens > 0) stats.recordProviderCacheRead(cacheReadTokens);
     sendJson(res, upstream.status, { ...payload, megabrain: { cache_hit: false, tier: decision.tier } });
   }
 

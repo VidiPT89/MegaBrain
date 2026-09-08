@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getUserApiKey } from "@/lib/keys";
 import { findCached, storeCache } from "@/lib/cache";
-import { route, isMultiTurn } from "@/lib/router";
-import { recordCacheHit, recordRoute } from "@/lib/stats";
+import { route, isMultiTurn, injectAnthropicPromptCaching } from "@/lib/router";
+import { recordCacheHit, recordRoute, recordProviderCacheRead } from "@/lib/stats";
 import { logRequest } from "@/lib/requestLog";
 import { isRateLimited, RATE_LIMIT_MESSAGE } from "@/lib/rateLimit";
 import { friendlyUpstreamError } from "@/lib/friendlyError";
@@ -13,6 +13,7 @@ interface AnthropicRequest {
   model: string;
   max_tokens: number;
   messages: { role: string; content: string | { type: string; text?: string }[] }[];
+  system?: string | { type: string; text?: string }[];
   stream?: boolean;
 }
 
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
   const upstream = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(injectAnthropicPromptCaching(body)),
   });
 
   if (body.stream && upstream.ok && upstream.body) {
@@ -96,6 +97,9 @@ export async function POST(req: NextRequest) {
 
   const text = payload?.content?.find((b: { type: string; text?: string }) => b.type === "text")?.text;
   if (cacheable && text) await storeCache(userId, prompt, text);
+
+  const cacheReadTokens = payload?.usage?.cache_read_input_tokens;
+  if (typeof cacheReadTokens === "number" && cacheReadTokens > 0) await recordProviderCacheRead(userId, cacheReadTokens);
 
   return NextResponse.json({ ...payload, megabrain: { cache_hit: false, tier: decision.tier } }, { status: upstream.status });
 }

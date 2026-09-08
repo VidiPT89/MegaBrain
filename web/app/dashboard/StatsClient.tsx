@@ -10,6 +10,7 @@ interface Stats {
   cacheHits: number;
   tierCounts: { local: number; mid: number; premium: number };
   tokensSavedEstimate: number;
+  providerCacheReadTokens: number;
 }
 
 interface DailyPoint {
@@ -29,7 +30,13 @@ interface RequestRow {
   created_at: string;
 }
 
-const EMPTY: Stats = { totalRequests: 0, cacheHits: 0, tierCounts: { local: 0, mid: 0, premium: 0 }, tokensSavedEstimate: 0 };
+const EMPTY: Stats = {
+  totalRequests: 0,
+  cacheHits: 0,
+  tierCounts: { local: 0, mid: 0, premium: 0 },
+  tokensSavedEstimate: 0,
+  providerCacheReadTokens: 0,
+};
 
 export default function StatsClient() {
   const [stats, setStats] = useState<Stats>(EMPTY);
@@ -59,11 +66,12 @@ export default function StatsClient() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Stat icon="◆" label="Total requests" value={stats.totalRequests} />
         <Stat icon="⚡" label="Cache hits" value={stats.cacheHits} />
         <Stat icon="%" label="Hit rate" value={`${rate}%`} />
         <Stat icon="◎" label="Tokens saved" value={stats.tokensSavedEstimate} />
+        <Stat icon="⧉" label="Anthropic prompt cache" value={stats.providerCacheReadTokens} />
       </div>
 
       <div className="mb-card p-6">

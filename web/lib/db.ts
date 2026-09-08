@@ -46,9 +46,12 @@ export async function ensureSchema(): Promise<void> {
       tier_local INTEGER NOT NULL DEFAULT 0,
       tier_mid INTEGER NOT NULL DEFAULT 0,
       tier_premium INTEGER NOT NULL DEFAULT 0,
-      tokens_saved_estimate INTEGER NOT NULL DEFAULT 0
+      tokens_saved_estimate INTEGER NOT NULL DEFAULT 0,
+      provider_cache_read_tokens INTEGER NOT NULL DEFAULT 0
     )
   `;
+  // Migração para tabelas já existentes de antes deste campo — CREATE TABLE IF NOT EXISTS acima não adiciona colunas a uma tabela já criada.
+  await db`ALTER TABLE usage_stats ADD COLUMN IF NOT EXISTS provider_cache_read_tokens INTEGER NOT NULL DEFAULT 0`;
   await db`
     CREATE TABLE IF NOT EXISTS request_log (
       id BIGSERIAL PRIMARY KEY,

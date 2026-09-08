@@ -115,6 +115,10 @@ On the OpenAI-compatible endpoint (`/v1/chat/completions`), MegaBrain doesn't ju
 
 Set only the keys you have — anything unconfigured is skipped and MegaBrain falls back to the premium provider, exactly like before. The response's `megabrain.provider` field tells you which one actually served the request.
 
+### Native Anthropic prompt caching
+
+On the Anthropic-compatible endpoint (`/v1/messages`), MegaBrain automatically tags the system prompt and the end of the previous turn with `cache_control: {type: "ephemeral"}` before forwarding the request. This is Anthropic's own server-side prompt cache — unlike our semantic cache, it's safe on multi-turn conversations (a coding agent, a chat UI) because the provider itself decides what's an exact-prefix match, not a similarity heuristic. Cached tokens cost roughly 90% less on the next call that repeats them. It's on by default; set `MEGABRAIN_DISABLE_PROMPT_CACHING=true` to opt out. The dashboard's "Anthropic prompt cache" stat shows how many tokens were actually served from it (`usage.cache_read_input_tokens` from the provider's own response — a real number, not an estimate).
+
 ## 📖 Usage
 
 1. Start `megabrain proxy` and point your app's `base_url` at `http://localhost:8787` instead of the real provider — no other code changes.
