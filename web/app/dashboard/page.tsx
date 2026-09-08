@@ -36,7 +36,7 @@ export default async function DashboardPage() {
       <div className="mb-card p-6 text-sm opacity-80 space-y-2">
         <p className="font-semibold opacity-100">Use it from your app</p>
         <p>
-          Point your OpenAI or Anthropic SDK's <code>base_url</code> at this endpoint (send your MegaBrain
+          Point your OpenAI or Anthropic SDK&apos;s <code>base_url</code> at this endpoint (send your MegaBrain
           session cookie, or use the API from a browser context signed in to this account):
         </p>
         <code className="block mb-card p-3 mt-2" style={{ borderStyle: "solid" }}>

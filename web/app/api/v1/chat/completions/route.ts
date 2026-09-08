@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getUserApiKey } from "@/lib/keys";
 import { findCached, storeCache } from "@/lib/cache";
-import { route } from "@/lib/router";
+import { route, isMultiTurn } from "@/lib/router";
 import { recordCacheHit, recordRoute } from "@/lib/stats";
 import { logRequest } from "@/lib/requestLog";
 import { isRateLimited, RATE_LIMIT_MESSAGE } from "@/lib/rateLimit";
@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as OpenAIRequest;
   const prompt = extractPrompt(body);
   const provider = openaiKey ? "openai" : "gemini";
+  const cacheable = !isMultiTurn(body.messages);
 
-  const cached = await findCached(userId, prompt);
+  const cached = cacheable ? await findCached(userId, prompt) : null;
   if (cached) {
     const tokensEstimate = Math.ceil(prompt.length / 4);
     await recordCacheHit(userId, tokensEstimate);
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   if (body.stream && upstream.ok && upstream.body) {
     const stream = teeStream(upstream.body, extractOpenAIStreamDelta, (text) => {
-      if (text) storeCache(userId, prompt, text);
+      if (cacheable && text) storeCache(userId, prompt, text);
     });
     return new NextResponse(stream, { headers: SSE_HEADERS });
   }
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
   }
 
   const text = payload?.choices?.[0]?.message?.content;
-  if (text) await storeCache(userId, prompt, text);
+  if (cacheable && text) await storeCache(userId, prompt, text);
 
   return NextResponse.json({ ...payload, megabrain: { cache_hit: false, tier: decision.tier } }, { status: upstream.status });
 }

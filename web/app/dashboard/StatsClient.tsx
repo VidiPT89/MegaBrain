@@ -48,6 +48,7 @@ export default function StatsClient() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional fetch-on-mount + poll
     refresh();
     const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
