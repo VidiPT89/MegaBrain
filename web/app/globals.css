@@ -3,21 +3,27 @@
 :root {
   --bg: #0a0806;
   --paper: #14100c;
+  --paper-2: #1a1510;
   --ink: #f3ece3;
   --muted: #a89a8a;
   --border: #2a221a;
   --orange: #e0651a;
   --amber: #f2ac2b;
+  --glow: rgba(224, 101, 26, 0.28);
+  --shadow: rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="light"] {
   --bg: #faf3e8;
   --paper: #fffaf2;
+  --paper-2: #fdf2e2;
   --ink: #201509;
   --muted: #7a6a56;
   --border: #ecdcc4;
   --orange: #c2410c;
   --amber: #b5750f;
+  --glow: rgba(194, 65, 12, 0.14);
+  --shadow: rgba(120, 90, 50, 0.12);
 }
 
 @theme inline {
@@ -27,16 +33,98 @@
   --font-mono: var(--font-geist-mono);
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Ambient glow behind the page, echoes the CLI dashboard's brand mark */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20% -10% auto -10%;
+  height: 70vh;
+  background: radial-gradient(ellipse at top, var(--glow), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: ambientPulse 8s ease-in-out infinite;
+}
+
+@keyframes ambientPulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  from {
+    stroke-dashoffset: var(--dash-length, 300);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.mb-fade-in {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .mb-card {
-  background: var(--paper);
+  position: relative;
+  background: linear-gradient(160deg, var(--paper), var(--paper-2));
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px -12px var(--shadow);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.mb-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--orange) 45%, var(--border));
+  box-shadow: 0 16px 32px -14px var(--shadow), 0 0 0 1px color-mix(in srgb, var(--orange) 20%, transparent);
 }
 
 .mb-accent {
@@ -46,18 +134,39 @@ body {
   color: transparent;
 }
 
+.mb-shimmer-text {
+  background: linear-gradient(90deg, var(--orange) 0%, var(--amber) 25%, var(--orange) 50%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3.5s linear infinite;
+}
+
 .mb-btn {
   background: linear-gradient(135deg, var(--orange), var(--amber));
   color: #14100c;
   font-weight: 600;
   border-radius: 999px;
   padding: 0.6rem 1.4rem;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.15s ease;
   display: inline-block;
+  box-shadow: 0 4px 16px -4px var(--glow);
 }
 
 .mb-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 24px -6px var(--glow);
+}
+
+.mb-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.mb-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
 }
 
 .mb-pill {
@@ -68,4 +177,21 @@ body {
   padding: 0.4rem 1rem;
   font-size: 0.8rem;
   font-weight: 600;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.mb-pill:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--orange) 40%, var(--border));
+}
+
+.mb-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -0.15em;
 }

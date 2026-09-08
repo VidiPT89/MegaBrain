@@ -74,9 +74,14 @@ export default function TryItConsole({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {configuredProviders.map((p) => (
-          <button key={p} className={`mb-pill ${provider === p ? "opacity-100" : "opacity-50"}`} onClick={() => changeProvider(p)}>
+          <button
+            key={p}
+            className="mb-pill"
+            style={{ opacity: provider === p ? 1 : 0.5, borderColor: provider === p ? "var(--orange)" : "var(--border)" }}
+            onClick={() => changeProvider(p)}
+          >
             {p}
           </button>
         ))}
@@ -99,17 +104,25 @@ export default function TryItConsole({ onDone }: { onDone: () => void }) {
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Ask something..."
         rows={2}
-        className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
+        className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm transition-colors"
         style={{ borderColor: "var(--border)" }}
+        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--orange)")}
+        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
       />
 
       <button className="mb-btn" onClick={send} disabled={loading}>
-        {loading ? "Sending..." : "Send"}
+        {loading ? (
+          <span className="flex items-center gap-2">
+            <span className="mb-spinner" /> Sending…
+          </span>
+        ) : (
+          "Send"
+        )}
       </button>
 
       {response && (
-        <div className="mb-card p-4 text-sm space-y-1">
-          <p>{response}</p>
+        <div className="mb-card p-4 text-sm space-y-1 mb-fade-in">
+          <p className="whitespace-pre-wrap">{response}</p>
           {meta && <p className="opacity-50 text-xs">{meta}</p>}
         </div>
       )}

@@ -70,13 +70,15 @@ export default function SettingsPage() {
 
   return (
     <main className="flex-1 max-w-lg mx-auto w-full px-6 py-16 space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
-      <p className="opacity-70 text-sm">
-        Your key is encrypted before it&apos;s stored and is only decrypted server-side to forward your requests.
-      </p>
+      <div className="mb-fade-in">
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="opacity-70 text-sm mt-1">
+          Your key is encrypted before it&apos;s stored and is only decrypted server-side to forward your requests.
+        </p>
+      </div>
 
       {keys.length > 0 && (
-        <div className="mb-card p-6 space-y-3">
+        <div className="mb-card mb-fade-in p-6 space-y-3" style={{ animationDelay: "80ms" }}>
           <p className="font-semibold text-sm">Your keys</p>
           {keys.map((k) => (
             <div key={k.provider} className="flex items-center justify-between text-sm">
@@ -92,7 +94,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="mb-card p-6 space-y-4">
+      <div className="mb-card mb-fade-in p-6 space-y-4" style={{ animationDelay: "160ms" }}>
         <div className="flex gap-2">
           <button
             className={`mb-pill ${provider === "gemini" ? "opacity-100" : "opacity-50"}`}

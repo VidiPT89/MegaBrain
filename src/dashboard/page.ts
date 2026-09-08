@@ -62,12 +62,15 @@ export function renderDashboard(): string {
   }
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand-mark {
-    width: 38px; height: 38px; border-radius: 10px;
-    background: linear-gradient(135deg, var(--orange), var(--amber));
+    width: 40px; height: 40px; border-radius: 11px;
+    background: linear-gradient(160deg, var(--paper), var(--bg));
+    border: 1px solid var(--border);
     box-shadow: 0 0 24px var(--glow);
-    animation: spin 12s linear infinite;
+    display: flex; align-items: center; justify-content: center;
+    animation: markPulse 4s ease-in-out infinite;
   }
-  @keyframes spin { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(20deg); } }
+  .brand-mark svg { width: 24px; height: 24px; }
+  @keyframes markPulse { 0%, 100% { box-shadow: 0 0 20px var(--glow); } 50% { box-shadow: 0 0 32px var(--glow); } }
   .brand h1 { margin: 0; font-size: 22px; letter-spacing: 0.5px; }
   .brand span { color: var(--muted); font-size: 13px; display: block; margin-top: 2px; }
   .controls { display: flex; gap: 10px; }
@@ -95,34 +98,48 @@ export function renderDashboard(): string {
   .hero h2 { font-size: 32px; margin: 0 0 10px; }
   .hero p { color: var(--muted); max-width: 560px; margin: 0 auto; line-height: 1.6; }
   .accent { background: linear-gradient(90deg, var(--orange), var(--amber)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 40px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; margin-bottom: 40px; }
   .card {
-    background: var(--paper);
+    background: linear-gradient(160deg, var(--paper), color-mix(in srgb, var(--paper) 85%, var(--bg)));
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 22px;
     opacity: 0; transform: translateY(16px);
     animation: rise 0.6s ease forwards;
+    transition: transform 0.25s cubic-bezier(.16,1,.3,1), border-color 0.25s ease, box-shadow 0.25s ease;
   }
+  .card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--orange) 45%, var(--border)); box-shadow: 0 16px 32px -16px var(--glow); }
   .card:nth-child(1) { animation-delay: 0.05s; }
   .card:nth-child(2) { animation-delay: 0.15s; }
   .card:nth-child(3) { animation-delay: 0.25s; }
   .card:nth-child(4) { animation-delay: 0.35s; }
+  .card:nth-child(5) { animation-delay: 0.45s; }
   .card .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; }
-  .card .value { font-size: 34px; font-weight: 700; margin-top: 8px; color: var(--orange); }
+  .card .value { font-size: 34px; font-weight: 700; margin-top: 8px; background: linear-gradient(90deg, var(--amber), var(--orange)); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .panel {
     background: var(--paper);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 26px;
+    margin-bottom: 24px;
     opacity: 0; animation: rise 0.6s ease 0.4s forwards;
+    transition: border-color 0.25s ease;
   }
+  .panel:hover { border-color: color-mix(in srgb, var(--orange) 30%, var(--border)); }
   .panel h3 { margin-top: 0; }
   .bar-row { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
   .bar-row .tag { width: 90px; font-size: 13px; color: var(--muted); text-transform: capitalize; }
   .bar-track { flex: 1; height: 10px; background: var(--border); border-radius: 6px; overflow: hidden; }
-  .bar-fill { height: 100%; width: 0%; border-radius: 6px; background: linear-gradient(90deg, var(--orange), var(--amber)); transition: width 0.6s ease; }
-  .bar-row .count { width: 36px; text-align: right; font-size: 13px; color: var(--muted); }
+  .bar-fill {
+    height: 100%; width: 0%; border-radius: 6px;
+    background: linear-gradient(90deg, var(--orange), var(--amber));
+    background-size: 200% 100%;
+    transition: width 0.8s cubic-bezier(.16,1,.3,1);
+    animation: barShimmer 2.5s linear infinite;
+    box-shadow: 0 0 10px -1px var(--glow);
+  }
+  @keyframes barShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .bar-row .count { width: 36px; text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
   footer {
     position: relative; z-index: 1;
     text-align: center; padding: 30px 24px 50px;
@@ -136,7 +153,26 @@ export function renderDashboard(): string {
   <div class="glow"></div>
   <header>
     <div class="brand">
-      <div class="brand-mark"></div>
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="url(#mb-mark-grad)" stroke-width="2" stroke-linecap="round">
+          <defs>
+            <linearGradient id="mb-mark-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="var(--amber)" />
+              <stop offset="100%" stop-color="var(--orange)" />
+            </linearGradient>
+          </defs>
+          <line x1="12" y1="6" x2="7" y2="11" />
+          <line x1="12" y1="6" x2="17" y2="11" />
+          <line x1="7" y1="11" x2="12" y2="15" />
+          <line x1="17" y1="11" x2="12" y2="15" />
+          <line x1="12" y1="15" x2="12" y2="19" />
+          <circle cx="12" cy="6" r="2" fill="url(#mb-mark-grad)" stroke="none" />
+          <circle cx="7" cy="11" r="1.6" fill="url(#mb-mark-grad)" stroke="none" />
+          <circle cx="17" cy="11" r="1.6" fill="url(#mb-mark-grad)" stroke="none" />
+          <circle cx="12" cy="15" r="1.8" fill="url(#mb-mark-grad)" stroke="none" />
+          <circle cx="12" cy="19" r="1.3" fill="url(#mb-mark-grad)" stroke="none" />
+        </svg>
+      </div>
       <div>
         <h1>MegaBrain</h1>
         <span data-i18n="tagline">A poupar tokens desde já</span>
@@ -165,7 +201,15 @@ export function renderDashboard(): string {
       </div>
       <div class="card">
         <div class="label" data-i18n="hitRate">Taxa de acerto</div>
-        <div class="value" id="stat-rate">0%</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div class="value" id="stat-rate">0%</div>
+          <svg width="30" height="30" viewBox="0 0 30 30" style="transform:rotate(-90deg); flex-shrink:0;">
+            <circle cx="15" cy="15" r="13" stroke="var(--border)" stroke-width="3.5" fill="none" />
+            <circle id="rate-ring" cx="15" cy="15" r="13" stroke="url(#mb-mark-grad)" stroke-width="3.5" fill="none"
+              stroke-linecap="round" stroke-dasharray="81.68" stroke-dashoffset="81.68"
+              style="transition: stroke-dashoffset 0.8s cubic-bezier(.16,1,.3,1);" />
+          </svg>
+        </div>
       </div>
       <div class="card">
         <div class="label" data-i18n="tokensSaved">Tokens poupados</div>
@@ -301,6 +345,8 @@ export function renderDashboard(): string {
       animateNumber(document.getElementById("stat-total"), total);
       animateNumber(document.getElementById("stat-hits"), hits);
       document.getElementById("stat-rate").textContent = rate + "%";
+      const circumference = 81.68;
+      document.getElementById("rate-ring").style.strokeDashoffset = circumference * (1 - Math.min(100, rate) / 100);
       animateNumber(document.getElementById("stat-tokens"), tokens);
       animateNumber(document.getElementById("stat-provider-cache"), providerCacheRead);
 
