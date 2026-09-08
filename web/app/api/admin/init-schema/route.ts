@@ -13,16 +13,7 @@ export async function POST(req: NextRequest) {
   // .trim() guards against a trailing newline/space baked into the stored env var value
   // (easy to introduce by pasting a key that had one) — the header never carries one.
   if (!provided || !expected || provided !== expected) {
-    // TEMPORARY diagnostic — lengths only, never the values themselves — to find why
-    // a byte-for-byte copy of the Vercel dashboard value still doesn't match. Remove
-    // once resolved.
-    return NextResponse.json(
-      {
-        error: "unauthorized",
-        debug: { providedLength: provided?.length ?? 0, expectedLength: expected?.length ?? 0, expectedSet: expected !== undefined },
-      },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   await ensureSchema();
   return NextResponse.json({ ok: true });
