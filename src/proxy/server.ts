@@ -8,6 +8,7 @@ import { StatsTracker } from "../stats/tracker.js";
 import {
   extractOpenAIPrompt,
   extractAnthropicPrompt,
+  isMultiTurn,
   buildOpenAICacheResponse,
   buildAnthropicCacheResponse,
   buildOpenAIStreamCacheEvents,
@@ -76,16 +77,19 @@ export function startProxy(options: ProxyOptions) {
     const raw = await readBody(req);
     const body = JSON.parse(raw) as OpenAIChatRequest;
     const prompt = extractOpenAIPrompt(body);
+    const cacheable = !isMultiTurn(body.messages);
 
-    const cached = await cache.find(prompt);
-    if (cached) {
-      stats.recordCacheHit(Math.ceil(prompt.length / 4));
-      if (body.stream) {
-        sendSseEvents(res, buildOpenAIStreamCacheEvents(body.model, cached.entry.response));
-      } else {
-        sendJson(res, 200, buildOpenAICacheResponse(body.model, cached.entry.response));
+    if (cacheable) {
+      const cached = await cache.find(prompt);
+      if (cached) {
+        stats.recordCacheHit(Math.ceil(prompt.length / 4));
+        if (body.stream) {
+          sendSseEvents(res, buildOpenAIStreamCacheEvents(body.model, cached.entry.response));
+        } else {
+          sendJson(res, 200, buildOpenAICacheResponse(body.model, cached.entry.response));
+        }
+        return;
       }
-      return;
     }
 
     const decision = route(prompt);
@@ -107,13 +111,13 @@ export function startProxy(options: ProxyOptions) {
       res.writeHead(upstream.status, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
       const text = await pipeAndCollectText(upstream.body, (raw) => res.write(raw), extractOpenAIStreamDelta);
       res.end();
-      if (text) await cache.store(prompt, text);
+      if (cacheable && text) await cache.store(prompt, text);
       return;
     }
 
     const payload = await upstream.json();
     const text = extractOpenAIResponseText(payload);
-    if (text) await cache.store(prompt, text);
+    if (cacheable && text) await cache.store(prompt, text);
     sendJson(res, upstream.status, { ...payload, megabrain: { cache_hit: false, tier: decision.tier, provider: target.provider } });
   }
 
@@ -121,16 +125,19 @@ export function startProxy(options: ProxyOptions) {
     const raw = await readBody(req);
     const body = JSON.parse(raw) as AnthropicMessagesRequest;
     const prompt = extractAnthropicPrompt(body);
+    const cacheable = !isMultiTurn(body.messages);
 
-    const cached = await cache.find(prompt);
-    if (cached) {
-      stats.recordCacheHit(Math.ceil(prompt.length / 4));
-      if (body.stream) {
-        sendSseEvents(res, buildAnthropicStreamCacheEvents(body.model, cached.entry.response));
-      } else {
-        sendJson(res, 200, buildAnthropicCacheResponse(body.model, cached.entry.response));
+    if (cacheable) {
+      const cached = await cache.find(prompt);
+      if (cached) {
+        stats.recordCacheHit(Math.ceil(prompt.length / 4));
+        if (body.stream) {
+          sendSseEvents(res, buildAnthropicStreamCacheEvents(body.model, cached.entry.response));
+        } else {
+          sendJson(res, 200, buildAnthropicCacheResponse(body.model, cached.entry.response));
+        }
+        return;
       }
-      return;
     }
 
     const decision = route(prompt);
@@ -148,13 +155,13 @@ export function startProxy(options: ProxyOptions) {
       res.writeHead(upstream.status, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
       const text = await pipeAndCollectText(upstream.body, (raw) => res.write(raw), extractAnthropicStreamDelta);
       res.end();
-      if (text) await cache.store(prompt, text);
+      if (cacheable && text) await cache.store(prompt, text);
       return;
     }
 
     const payload = await upstream.json();
     const text = extractAnthropicResponseText(payload);
-    if (text) await cache.store(prompt, text);
+    if (cacheable && text) await cache.store(prompt, text);
     sendJson(res, upstream.status, { ...payload, megabrain: { cache_hit: false, tier: decision.tier } });
   }
 

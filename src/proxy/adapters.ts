@@ -30,6 +30,20 @@ export function extractAnthropicPrompt(body: AnthropicMessagesRequest): string {
     .join("\n");
 }
 
+/**
+ * Uma conversa com mais de uma mensagem (histórico de turnos anteriores)
+ * não pode ser cacheada com segurança pela última mensagem isolada: duas
+ * conversas diferentes podem terminar com a mesma frase curta ("continua",
+ * "sim") e receber a resposta uma da outra. Cachear pelo texto completo
+ * também não resolve — um prefixo grande partilhado (ex. o mesmo system
+ * prompt/template) domina a similaridade e mascara a pergunta real, como já
+ * aconteceu no agente (ver src/agent/runner.ts). A única política segura é
+ * não usar o cache semântico fora de pedidos de um único turno.
+ */
+export function isMultiTurn(messages: { role: string }[]): boolean {
+  return messages.filter((m) => m.role === "user" || m.role === "assistant").length > 1;
+}
+
 export function buildOpenAICacheResponse(model: string, content: string) {
   return {
     id: `megabrain-cache-${Date.now()}`,

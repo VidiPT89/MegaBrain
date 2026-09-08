@@ -16,7 +16,7 @@ This repo has two ways to run it:
 
 - ✅ **Drop-in proxy** — `/v1/chat/completions` (OpenAI) and `/v1/messages` (Anthropic), same request/response shape
 - ✅ **Streaming support** — `stream: true` works end-to-end, including instant streamed replies on cache hits
-- ✅ **Semantic cache** — real embeddings (Ollama `nomic-embed-text`) when available, with a zero-dependency term-frequency fallback otherwise
+- ✅ **Semantic cache** — real embeddings (Ollama `nomic-embed-text`) when available, with a zero-dependency term-frequency fallback otherwise. Only applied to single-turn requests (one user message, no prior history) — a multi-turn conversation (agents, chat UIs, coding assistants) still gets tier routing, but skips the cache, since matching only on the latest message could return a cached reply from a completely different conversation
 - ✅ **Tier router** — heuristic `local` / `mid` / `premium` classification, then auto-picks the cheapest configured provider for that tier (Ollama → Groq/Gemini free tier → paid fallback)
 - ✅ **Lazy-loaded skills** — Markdown files with frontmatter triggers, only the matched skill's body is read
 - ✅ **Agent with real tool use** — `megabrain agent "<goal>"` runs a ReAct loop (Thought → Action → Observation) with built-in tools (`read_file`, `write_file`, `list_dir`, opt-in `run_shell`) and any [MCP](https://modelcontextprotocol.io) server you configure
