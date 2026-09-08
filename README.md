@@ -23,7 +23,7 @@ This repo has two ways to run it:
 - ✅ **Persistent memory** — `megabrain memory add "<fact>"` stores facts across runs; the agent pulls in the ones relevant to its current goal
 - ✅ **Always-on rules** — Markdown files in `rules/` are injected into every agent run, unlike skills which only load on a trigger match
 - ✅ **MCP client** — connects to any MCP server over stdio (`MEGABRAIN_MCP_SERVERS` env var), turning its tools into agent actions; `megabrain mcp list "<command>"` inspects one directly
-- ✅ **Live dashboard** — animated stats: total requests, cache hit rate, tokens saved, tier distribution
+- ✅ **Live dashboard** — animated stats: total requests, cache hit rate, tokens saved, tier distribution, and which actual provider (Ollama/Groq/Gemini/OpenAI/Anthropic) served each request
 - ✅ **PT / EN toggle** — remembered in `localStorage`
 - ✅ **Dark / light** — dark by default, same burnt orange and amber, cream paper in light mode
 - ✅ **Works fully offline and free** — point it at a local Ollama instance instead of a paid API

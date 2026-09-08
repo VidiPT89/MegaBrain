@@ -5,6 +5,7 @@ export interface StatsSnapshot {
   totalRequests: number;
   cacheHits: number;
   tierCounts: Record<string, number>;
+  providerCounts: Record<string, number>;
   tokensSavedEstimate: number;
 }
 
@@ -12,6 +13,7 @@ const EMPTY: StatsSnapshot = {
   totalRequests: 0,
   cacheHits: 0,
   tierCounts: { local: 0, mid: 0, premium: 0 },
+  providerCounts: {},
   tokensSavedEstimate: 0,
 };
 
@@ -21,9 +23,14 @@ export class StatsTracker {
 
   constructor(filePath: string) {
     this.filePath = filePath;
-    this.data = existsSync(filePath)
-      ? JSON.parse(readFileSync(filePath, "utf-8"))
-      : { ...EMPTY, tierCounts: { ...EMPTY.tierCounts } };
+    const loaded = existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf-8")) : {};
+    // Merge onto EMPTY so files written before a field existed (ex. providerCounts) still load cleanly.
+    this.data = {
+      ...EMPTY,
+      ...loaded,
+      tierCounts: { ...EMPTY.tierCounts, ...loaded.tierCounts },
+      providerCounts: { ...EMPTY.providerCounts, ...loaded.providerCounts },
+    };
   }
 
   recordCacheHit(estimatedTokens: number): void {
@@ -36,6 +43,11 @@ export class StatsTracker {
   recordRoute(tier: string): void {
     this.data.totalRequests += 1;
     this.data.tierCounts[tier] = (this.data.tierCounts[tier] ?? 0) + 1;
+    this.persist();
+  }
+
+  recordProvider(provider: string): void {
+    this.data.providerCounts[provider] = (this.data.providerCounts[provider] ?? 0) + 1;
     this.persist();
   }
 

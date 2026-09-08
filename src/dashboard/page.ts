@@ -191,6 +191,11 @@ export function renderDashboard(): string {
         <div class="count" id="count-premium">0</div>
       </div>
     </section>
+
+    <section class="panel">
+      <h3 data-i18n="providerTitle">Distribuição por provider</h3>
+      <div id="provider-bars"></div>
+    </section>
   </main>
 
   <footer>
@@ -213,6 +218,7 @@ export function renderDashboard(): string {
       hitRate: "Taxa de acerto",
       tokensSaved: "Tokens poupados",
       tierTitle: "Distribuição por tier",
+      providerTitle: "Distribuição por provider",
       footerCredit: "Developed by David Arsénio Martins",
     },
     en: {
@@ -224,6 +230,7 @@ export function renderDashboard(): string {
       hitRate: "Hit rate",
       tokensSaved: "Tokens saved",
       tierTitle: "Tier distribution",
+      providerTitle: "Provider distribution",
       footerCredit: "Developed by David Arsénio Martins",
     },
   };
@@ -295,6 +302,34 @@ export function renderDashboard(): string {
       document.getElementById("count-local").textContent = tiers.local || 0;
       document.getElementById("count-mid").textContent = tiers.mid || 0;
       document.getElementById("count-premium").textContent = tiers.premium || 0;
+
+      const providers = data.providerCounts || {};
+      const providerEntries = Object.entries(providers).sort(function (a, b) { return b[1] - a[1]; });
+      const maxProvider = Math.max(1, Math.max.apply(null, providerEntries.map(function (e) { return e[1]; }).concat([0])));
+      const container = document.getElementById("provider-bars");
+      if (providerEntries.length === 0) {
+        container.innerHTML =
+          '<p style="color:var(--muted);font-size:13px;">' +
+          (lang === "pt" ? "Ainda sem pedidos encaminhados." : "No requests routed yet.") +
+          "</p>";
+      } else {
+        container.innerHTML = providerEntries
+          .map(function (entry) {
+            const name = entry[0];
+            const count = entry[1];
+            const width = (count / maxProvider) * 100;
+            return (
+              '<div class="bar-row"><div class="tag">' +
+              name +
+              '</div><div class="bar-track"><div class="bar-fill" style="width:' +
+              width +
+              '%"></div></div><div class="count">' +
+              count +
+              "</div></div>"
+            );
+          })
+          .join("");
+      }
     } catch (err) {
       console.error("megabrain dashboard fetch failed", err);
     }

@@ -96,6 +96,7 @@ export function startProxy(options: ProxyOptions) {
     stats.recordRoute(decision.tier);
 
     const target = resolveProvider(decision.tier);
+    stats.recordProvider(target.provider);
     const outgoingBody = target.model ? JSON.stringify({ ...body, model: target.model }) : raw;
     const apiKey =
       target.provider === "openai"
@@ -142,6 +143,7 @@ export function startProxy(options: ProxyOptions) {
 
     const decision = route(prompt);
     stats.recordRoute(decision.tier);
+    stats.recordProvider("anthropic");
 
     const apiKey = (req.headers["x-api-key"] as string) ?? process.env.ANTHROPIC_API_KEY ?? "";
     const version = (req.headers["anthropic-version"] as string) ?? "2023-06-01";
