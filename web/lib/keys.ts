@@ -1,7 +1,7 @@
 import { sql } from "./db";
 import { decryptSecret } from "./crypto";
 
-export type Provider = "openai" | "anthropic" | "gemini";
+export type Provider = "openai" | "anthropic" | "gemini" | "groq";
 
 export async function getUserApiKey(userId: string, provider: Provider): Promise<string | null> {
   const db = sql();

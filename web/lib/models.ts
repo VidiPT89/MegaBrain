@@ -4,6 +4,10 @@ export const MODEL_CATALOG: Record<string, { id: string; label: string }[]> = {
     { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash (rápido, grátis)" },
     { id: "gemini-3.6-pro", label: "Gemini 3.6 Pro (mais capaz)" },
   ],
+  groq: [
+    { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (rápido, grátis)" },
+    { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant (o mais rápido)" },
+  ],
   anthropic: [
     { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
     { id: "claude-opus-5", label: "Claude Opus 5" },

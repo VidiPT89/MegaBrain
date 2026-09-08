@@ -6,12 +6,19 @@ const PLACEHOLDERS: Record<string, string> = {
   anthropic: "sk-ant-...",
   openai: "sk-...",
   gemini: "AIza...",
+  groq: "gsk_...",
 };
 
 const LABELS: Record<string, string> = {
   gemini: "Gemini",
   anthropic: "Anthropic",
   openai: "OpenAI",
+  groq: "Groq",
+};
+
+const FREE_TIER_INFO: Record<string, { url: string; label: string }> = {
+  gemini: { url: "https://aistudio.google.com/apikey", label: "aistudio.google.com/apikey" },
+  groq: { url: "https://console.groq.com/keys", label: "console.groq.com/keys" },
 };
 
 interface StoredKey {
@@ -20,7 +27,7 @@ interface StoredKey {
 }
 
 export default function SettingsPage() {
-  const [provider, setProvider] = useState<"openai" | "anthropic" | "gemini">("gemini");
+  const [provider, setProvider] = useState<"openai" | "anthropic" | "gemini" | "groq">("gemini");
   const [apiKey, setApiKey] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [keys, setKeys] = useState<StoredKey[]>([]);
@@ -94,6 +101,12 @@ export default function SettingsPage() {
             Gemini (free)
           </button>
           <button
+            className={`mb-pill ${provider === "groq" ? "opacity-100" : "opacity-50"}`}
+            onClick={() => setProvider("groq")}
+          >
+            Groq (free)
+          </button>
+          <button
             className={`mb-pill ${provider === "anthropic" ? "opacity-100" : "opacity-50"}`}
             onClick={() => setProvider("anthropic")}
           >
@@ -107,16 +120,16 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        {provider === "gemini" && (
+        {FREE_TIER_INFO[provider] && (
           <p className="text-sm opacity-70">
             Get a free key with no credit card at{" "}
             <a
-              href="https://aistudio.google.com/apikey"
+              href={FREE_TIER_INFO[provider].url}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "var(--orange)" }}
             >
-              aistudio.google.com/apikey
+              {FREE_TIER_INFO[provider].label}
             </a>
             .
           </p>

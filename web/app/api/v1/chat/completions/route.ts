@@ -31,24 +31,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
   }
 
-  const openaiKey = await getUserApiKey(userId, "openai");
-  const geminiKey = openaiKey ? null : await getUserApiKey(userId, "gemini");
-  const apiKey = openaiKey ?? geminiKey;
-  if (!apiKey) {
+  // Grátis primeiro (Groq, depois Gemini), OpenAI (pago) só como último recurso —
+  // consistente com a filosofia de custo do MegaBrain. Todos expõem um endpoint
+  // compatível com o formato OpenAI, por isso basta trocar o base_url.
+  const PROVIDER_ENDPOINTS: { provider: "groq" | "gemini" | "openai"; baseUrl: string }[] = [
+    { provider: "groq", baseUrl: "https://api.groq.com/openai/v1/chat/completions" },
+    { provider: "gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" },
+    { provider: "openai", baseUrl: "https://api.openai.com/v1/chat/completions" },
+  ];
+
+  let apiKey: string | null = null;
+  let provider: string | null = null;
+  let baseUrl = "";
+  for (const candidate of PROVIDER_ENDPOINTS) {
+    const key = await getUserApiKey(userId, candidate.provider);
+    if (key) {
+      apiKey = key;
+      provider = candidate.provider;
+      baseUrl = candidate.baseUrl;
+      break;
+    }
+  }
+  if (!apiKey || !provider) {
     return NextResponse.json(
-      { error: "Sem chave OpenAI ou Gemini configurada. Adiciona uma em /settings." },
+      { error: "Sem chave Groq, Gemini ou OpenAI configurada. Adiciona uma em /settings." },
       { status: 400 },
     );
   }
-  // A API do Gemini expõe um endpoint compatível com o formato OpenAI, por isso
-  // basta trocar o base_url — o resto do pedido/resposta fica igual.
-  const baseUrl = openaiKey
-    ? "https://api.openai.com/v1/chat/completions"
-    : "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
   const body = (await req.json()) as OpenAIRequest;
   const prompt = extractPrompt(body);
-  const provider = openaiKey ? "openai" : "gemini";
   const cacheable = !isMultiTurn(body.messages);
 
   const cached = cacheable ? await findCached(userId, prompt) : null;

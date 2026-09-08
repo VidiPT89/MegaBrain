@@ -1,6 +1,6 @@
 # MegaBrain — hosted app
 
-Multi-tenant version of MegaBrain: sign in with GitHub, add your own Gemini, OpenAI or Anthropic key, and get a hosted drop-in proxy plus a live savings dashboard. Gemini has a free tier with no credit card required. Each user's key is encrypted at rest and their cache/stats are isolated by account. Streaming, a per-user rate limit, request history and a "Try it" console are built in. Next.js on Vercel, Postgres on Neon.
+Multi-tenant version of MegaBrain: sign in with GitHub, add your own Gemini, Groq, OpenAI or Anthropic key, and get a hosted drop-in proxy plus a live savings dashboard. Gemini and Groq both have a free tier with no credit card required. Each user's key is encrypted at rest and their cache/stats are isolated by account. Streaming, a per-user rate limit, request history and a "Try it" console are built in. Next.js on Vercel, Postgres on Neon.
 
 ## Local setup
 
@@ -36,7 +36,7 @@ The database schema (`users`, `api_keys`, `cache_entries`, `usage_stats`, `reque
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/v1/chat/completions` | OpenAI-compatible proxy (streaming supported); uses the signed-in user's OpenAI key, or falls back to their Gemini key via Google's OpenAI-compatible endpoint |
+| POST | `/api/v1/chat/completions` | OpenAI-compatible proxy (streaming supported); uses whichever key the signed-in user has configured, trying Groq → Gemini → OpenAI in that order (free tiers first) |
 | POST | `/api/v1/messages` | Anthropic-compatible proxy (streaming supported), uses the signed-in user's stored key |
 | GET | `/api/stats` | Signed-in user's savings stats |
 | GET | `/api/stats/timeseries` | Daily requests/cache-hits/tokens-saved for the last 14 days, powers the dashboard chart |
