@@ -18,11 +18,6 @@ This repo has two ways to run it:
 - ✅ **Streaming support** — `stream: true` works end-to-end, including instant streamed replies on cache hits
 - ✅ **Semantic cache** — real embeddings (Ollama `nomic-embed-text`) when available, with a zero-dependency term-frequency fallback otherwise. Only applied to single-turn requests (one user message, no prior history) — a multi-turn conversation (agents, chat UIs, coding assistants) still gets tier routing, but skips the cache, since matching only on the latest message could return a cached reply from a completely different conversation
 - ✅ **Tier router** — heuristic `local` / `mid` / `premium` classification, then auto-picks the cheapest configured provider for that tier (Ollama → Groq/Gemini free tier → paid fallback)
-- ✅ **Lazy-loaded skills** — Markdown files with frontmatter triggers, only the matched skill's body is read
-- ✅ **Agent with real tool use** — `megabrain agent "<goal>"` runs a ReAct loop (Thought → Action → Observation) with built-in tools (`read_file`, `write_file`, `list_dir`, opt-in `run_shell`) and any [MCP](https://modelcontextprotocol.io) server you configure
-- ✅ **Persistent memory** — `megabrain memory add "<fact>"` stores facts across runs; the agent pulls in the ones relevant to its current goal
-- ✅ **Always-on rules** — Markdown files in `rules/` are injected into every agent run, unlike skills which only load on a trigger match
-- ✅ **MCP client** — connects to any MCP server over stdio (`MEGABRAIN_MCP_SERVERS` env var), turning its tools into agent actions; `megabrain mcp list "<command>"` inspects one directly
 - ✅ **Live dashboard** — animated stats: total requests, cache hit rate, tokens saved, tier distribution, and which actual provider (Ollama/Groq/Gemini/OpenAI/Anthropic) served each request
 - ✅ **PT / EN toggle** — remembered in `localStorage`
 - ✅ **Dark / light** — dark by default, same burnt orange and amber, cream paper in light mode
@@ -42,7 +37,7 @@ This repo has two ways to run it:
 | **Language** | TypeScript | CLI, proxy, cache, router, dashboard |
 | **Cache** | Term-frequency + cosine similarity | Semantic matching without an embeddings API |
 | **Dashboard** | Vanilla HTML/CSS/JS | Animated stats, PT/EN and dark/light toggles |
-| **Tests** | Vitest | Tier router and semantic cache coverage |
+| **Tests** | Vitest | Router, provider selection, and semantic cache coverage |
 
 ## 🧱 Project Structure
 
@@ -50,19 +45,12 @@ This repo has two ways to run it:
 MegaBrain/
 ├── src/
 │   ├── cache/        # Semantic cache
-│   ├── router/        # Tier router
-│   ├── skills/         # Lazy-loaded Markdown skills
+│   ├── router/        # Tier router + cheapest-provider selection
 │   ├── stats/          # Savings tracker
 │   ├── proxy/          # OpenAI/Anthropic-compatible drop-in proxy
 │   ├── dashboard/    # Live stats dashboard (PT/EN, dark/light)
-│   ├── agent/          # ReAct agent loop (tools, rules, memory, MCP, skills)
-│   ├── tools/           # Built-in agent tools
-│   ├── memory/          # Persistent facts store
-│   ├── mcp/             # Minimal MCP client (stdio transport)
 │   ├── cli.ts
 │   └── index.ts
-├── skills/
-├── rules/
 ├── docs/
 ├── tests/
 ├── LICENSE
@@ -113,7 +101,7 @@ node dist/cli.js dashboard 4321
 megabrain init
 ```
 
-Detects a local Ollama install, writes a working `.env` for you (free/local by default, or commented-out slots for paid keys otherwise), scaffolds a starter `skills/` and `rules/` folder in your project (copied from the package, so `megabrain agent` has something to work with immediately instead of finding empty folders), and shows the tier a sample prompt would get routed to — so you see the router working before spending a single token.
+Detects a local Ollama install, writes a working `.env` for you (free/local by default, or commented-out slots for paid keys otherwise), and shows the tier a sample prompt would get routed to — so you see the router working before spending a single token.
 
 ### Cheapest-capable provider per tier
 
@@ -134,14 +122,6 @@ Set only the keys you have — anything unconfigured is skipped and MegaBrain fa
 3. On a miss, the request is classified into a tier (`local` / `mid` / `premium`), routed to the cheapest provider configured for that tier, and forwarded; the response is cached for next time.
 4. Open `megabrain dashboard` to watch requests, cache hit rate, tokens saved and tier distribution update live. Toggle **PT/EN** and **Dark/Light** in the header.
 5. Or skip the server entirely: `megabrain ask "<prompt>"`, `megabrain remember "<prompt>" "<response>"`, `megabrain stats`.
-6. Try the agent: `megabrain agent "Read package.json and tell me the project name"` — it reasons, picks a tool, reads the observation, and repeats until it has a final answer.
-7. Give it long-term facts: `megabrain memory add "I prefer short, direct answers"`. Relevant facts are pulled into every agent run automatically.
-8. Add always-on constraints by dropping a Markdown file in `rules/` — every agent run includes them.
-9. Connect an MCP server: set `MEGABRAIN_MCP_SERVERS="fs:npx -y @modelcontextprotocol/server-filesystem /path"` and its tools become available to the agent alongside the built-in ones. Inspect one directly with `megabrain mcp list "npx -y @modelcontextprotocol/server-filesystem /path"`.
-
-## ⚠️ Agent & Tool Safety
-
-The agent's `write_file` tool can overwrite files, and `run_shell` can execute arbitrary commands — `run_shell` is disabled by default and only registered when `MEGABRAIN_ALLOW_SHELL=true` is set. The agent runs locally with your own permissions: review what a goal will make it do before enabling shell access, especially with MCP servers you didn't write yourself.
 
 ## 🔌 API Endpoints
 
@@ -158,7 +138,7 @@ The agent's `write_file` tool can overwrite files, and `run_shell` can execute a
 npm test
 ```
 
-Vitest covers tier classification (local/mid/premium), semantic cache behavior (hit on reworded prompts, miss on unrelated ones, clear), persistent memory search, and — when a real embeddings server is reachable — a regression test ensuring two different prompts that share a large boilerplate template aren't confused as duplicates.
+Vitest covers tier classification (local/mid/premium), cheapest-provider selection per tier, multi-turn cache-skip logic, semantic cache behavior (hit on reworded prompts, miss on unrelated ones, clear), and — when a real embeddings server is reachable — a regression test ensuring two different prompts that share a large boilerplate template aren't confused as duplicates.
 
 ## 📄 License
 

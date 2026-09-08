@@ -36,9 +36,9 @@ export function extractAnthropicPrompt(body: AnthropicMessagesRequest): string {
  * conversas diferentes podem terminar com a mesma frase curta ("continua",
  * "sim") e receber a resposta uma da outra. Cachear pelo texto completo
  * também não resolve — um prefixo grande partilhado (ex. o mesmo system
- * prompt/template) domina a similaridade e mascara a pergunta real, como já
- * aconteceu no agente (ver src/agent/runner.ts). A única política segura é
- * não usar o cache semântico fora de pedidos de um único turno.
+ * prompt/template) domina a similaridade e mascara a pergunta real. A única
+ * política segura é não usar o cache semântico fora de pedidos de um único
+ * turno.
  */
 export function isMultiTurn(messages: { role: string }[]): boolean {
   return messages.filter((m) => m.role === "user" || m.role === "assistant").length > 1;
