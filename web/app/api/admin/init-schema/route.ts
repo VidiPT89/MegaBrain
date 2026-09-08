@@ -8,8 +8,11 @@ import { ensureSchema } from "@/lib/db";
  * ninguém sem o segredo.
  */
 export async function POST(req: NextRequest) {
-  const provided = req.headers.get("x-init-secret");
-  if (!provided || provided !== process.env.MEGABRAIN_ENCRYPTION_KEY) {
+  const provided = req.headers.get("x-init-secret")?.trim();
+  const expected = process.env.MEGABRAIN_ENCRYPTION_KEY?.trim();
+  // .trim() guards against a trailing newline/space baked into the stored env var value
+  // (easy to introduce by pasting a key that had one) — the header never carries one.
+  if (!provided || !expected || provided !== expected) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   await ensureSchema();
