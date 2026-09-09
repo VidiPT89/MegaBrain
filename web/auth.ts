@@ -3,6 +3,7 @@ import GitHub from "next-auth/providers/github";
 import { sql } from "./lib/db";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   providers: [GitHub],
   callbacks: {
     async jwt({ token, profile }) {
