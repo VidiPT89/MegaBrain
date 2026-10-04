@@ -2,6 +2,8 @@
 
 > A drop-in OpenAI/Anthropic-compatible proxy that cuts LLM token spend before a single token is spent — semantic cache, cost-tier routing to the cheapest capable provider, native prompt caching, and a live savings dashboard.
 
+[![CI](https://github.com/VidiPT89/MegaBrain/actions/workflows/ci.yml/badge.svg)](https://github.com/VidiPT89/MegaBrain/actions/workflows/ci.yml)
+
 [Report Bug](https://github.com/VidiPT89/MegaBrain/issues) · [Request Feature](https://github.com/VidiPT89/MegaBrain/issues)
 
 **Hosted version:** a multi-tenant web app (sign in with GitHub, bring your own key) lives in [`web/`](web/) — see [web/README.md](web/README.md) to run or deploy it.
